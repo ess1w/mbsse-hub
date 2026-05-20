@@ -1,9 +1,23 @@
 /**
  * API client for the MBSSE FastAPI backend.
  * Handles base URL, Bearer token injection, and token refresh.
+ *
+ * DEMO MODE: when VITE_API_URL is not set (e.g. static deploy without a
+ * backend), auth falls back to hardcoded demo credentials and data calls
+ * return an empty/mock response rather than throwing "Failed to fetch".
  */
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1';
+
+// ── Demo mode ────────────────────────────────────────────────────────────────
+// Active when no API URL is configured (static-only deploy).
+export const DEMO_MODE = !import.meta.env.VITE_API_URL;
+
+const DEMO_USERS = [
+  { email: 'admin@mbsse.gov.sl',  password: 'demo2026', role: 'admin',   name: 'MBSSE Administrator' },
+  { email: 'partner@example.com', password: 'demo2026', role: 'partner', name: 'Partner User' },
+  { email: 'viewer@example.com',  password: 'demo2026', role: 'viewer',  name: 'Viewer User' },
+];
 
 // ── Token storage ────────────────────────────────────────────────────────────
 // Stored in localStorage so they survive page refresh.
@@ -108,14 +122,35 @@ export async function apiFetch(path, options = {}) {
 // ── Auth API calls ────────────────────────────────────────────────────────────
 
 export const authApi = {
-  login: (email, password) =>
-    apiFetch('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    }),
+  login: async (email, password) => {
+    try {
+      return await apiFetch('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+    } catch (err) {
+      // Network error (backend unreachable) → try demo credentials
+      if (err.message === 'Failed to fetch' || err.message.includes('NetworkError')) {
+        const demo = DEMO_USERS.find(
+          u => u.email === email && u.password === password
+        );
+        if (demo) {
+          return {
+            access_token:  'demo-token',
+            refresh_token: 'demo-refresh',
+            role:          demo.role,
+            full_name:     demo.name,
+            org_id:        null,
+          };
+        }
+        throw new Error('Could not reach the server. Use demo credentials to explore the prototype.');
+      }
+      throw err;
+    }
+  },
 
   logout: () =>
-    apiFetch('/auth/logout', { method: 'POST' }).finally(() => auth.clear()),
+    apiFetch('/auth/logout', { method: 'POST' }).catch(() => {}).finally(() => auth.clear()),
 };
 
 // ── Organisations API calls ──────────────────────────────────────────────
@@ -123,7 +158,11 @@ export const authApi = {
 export const organisationsApi = {
   list: (params = {}) => {
     const qs = new URLSearchParams(params).toString();
-    return apiFetch(`/organisations${qs ? '?' + qs : ''}`);
+    return apiFetch(`/organisations${qs ? '?' + qs : ''}`)
+      .catch(err => {
+        if (err.message === 'Failed to fetch' || err.message.includes('NetworkError')) return [];
+        throw err;
+      });
   },
   get: (id) => apiFetch(`/organisations/${id}`),
 };

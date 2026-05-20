@@ -176,8 +176,11 @@ export default function PartnerDirectory() {
   );
 
   if (error) return (
-    <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.red700, fontSize: 13 }}>
-      Failed to load: {error}
+    <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, color: C.textSec, fontSize: 13 }}>
+      <span style={{ fontSize: 22 }}>⚠️</span>
+      <strong style={{ color: C.text }}>Partner directory unavailable</strong>
+      <span>The API could not be reached. Partner data requires a live backend connection.</span>
+      <span style={{ fontSize: 11, color: C.textMuted }}>Error: {error}</span>
     </main>
   );
 

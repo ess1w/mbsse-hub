@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { C } from '../tokens.js';
-import { authApi, auth } from '../api/client.js';
+import { authApi, auth, DEMO_MODE } from '../api/client.js';
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -16,10 +16,14 @@ export default function Login({ onLogin }) {
     try {
       const data = await authApi.login(email, password);
       auth.setTokens({ access_token: data.access_token, refresh_token: data.refresh_token });
-      auth.setUser({ email, role: data.role, org_id: data.org_id });
-      onLogin({ email, role: data.role, org_id: data.org_id });
+      auth.setUser({ email, role: data.role, org_id: data.org_id, full_name: data.full_name });
+      onLogin({ email, role: data.role, org_id: data.org_id, full_name: data.full_name });
     } catch (err) {
-      setError(err.message === 'HTTP 401' ? 'Incorrect email or password.' : err.message);
+      setError(
+        err.message === 'HTTP 401' || err.message.includes('Incorrect')
+          ? 'Incorrect email or password.'
+          : err.message
+      );
     } finally {
       setLoading(false);
     }
@@ -57,6 +61,21 @@ export default function Login({ onLogin }) {
             Sign in to your account
           </p>
         </div>
+
+        {/* Demo credentials notice */}
+        {DEMO_MODE && (
+          <div style={{
+            background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8,
+            padding: '10px 14px', marginBottom: 16, fontSize: 11, color: '#92400e', lineHeight: 1.6,
+          }}>
+            <strong>Demo mode</strong> — no backend connected. Use any of these to sign in:
+            <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 2, fontFamily: 'monospace', fontSize: 11 }}>
+              <span>admin@mbsse.gov.sl · demo2026 <span style={{ fontFamily: 'sans-serif', opacity: 0.7 }}>(Admin)</span></span>
+              <span>partner@example.com · demo2026 <span style={{ fontFamily: 'sans-serif', opacity: 0.7 }}>(Partner)</span></span>
+              <span>viewer@example.com · demo2026 <span style={{ fontFamily: 'sans-serif', opacity: 0.7 }}>(Viewer)</span></span>
+            </div>
+          </div>
+        )}
 
         {/* Card */}
         <div style={{
