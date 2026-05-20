@@ -1,0 +1,30 @@
+# ── Node / frontend ──────────────────────────────────────────────────────────
+prototype/node_modules/
+prototype/.vite/
+prototype/.env*
+
+# ── Python / backend ─────────────────────────────────────────────────────────
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/.env*
+backend/uploads/
+
+# ── Documents & assets (not source code) ────────────────────────────────────
+*.doc
+*.docx
+*.pdf
+*.xls
+*.xlsx
+*.zip
+*.html
+~$*
+*.tmp
+
+# ── OS / editor ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

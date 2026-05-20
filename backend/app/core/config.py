@@ -1,0 +1,46 @@
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from functools import lru_cache
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
+
+    # App
+    environment: str = "development"
+    frontend_url: str = "http://localhost:5173"
+    allowed_origins: str = "http://localhost:5173"
+
+    # DB
+    database_url: str
+
+    # JWT
+    secret_key: str
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60
+    refresh_token_expire_days: int = 7
+
+    # Storage
+    storage_backend: str = "local"          # 'local' | 's3'
+    local_upload_dir: str = "./uploads"
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+    aws_s3_bucket: str = ""
+    aws_region: str = "eu-west-1"
+    s3_presigned_url_expiry: int = 3600
+
+    # Email
+    sendgrid_api_key: str = ""
+    email_from: str = "noreply@mbsse.gov.sl"
+    email_from_name: str = "MBSSE Coordination Hub"
+
+    # Celery
+    redis_url: str = "redis://localhost:6379/0"
+
+    @property
+    def origins(self) -> list[str]:
+        return [o.strip() for o in self.allowed_origins.split(",")]
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
