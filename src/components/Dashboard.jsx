@@ -48,6 +48,15 @@ const bars = [
 ];
 const barColors = ['#185FA5', '#378ADD', '#85B7EB', '#185FA5', '#378ADD', '#85B7EB', '#B5D4F4', '#dbeeff'];
 
+// Stacked bar data for Beneficiaries over time (F/M disaggregation)
+const STACKED_DATA = [
+  { label: 'Jul–Aug', sub: "'25", f: 10500, m: 7500 },
+  { label: 'Sep–Oct', sub: "'25", f: 14000, m: 10000 },
+  { label: 'Nov–Dec', sub: "'25", f: 18000, m: 13000 },
+  { label: 'Jan–Feb', sub: "'26", f: 24500, m: 17500 },
+  { label: 'Mar–Apr', sub: "'26", f: 28000, m: 20300 },
+];
+
 const ATTENTION = [
   { name: 'Street Child of Sierra Leone', region: 'Western Area, Port Loko', sla: 'SLA pending', status: 'Not submitted' },
   { name: 'Catholic Relief Services', region: 'Kailahun, Kenema', sla: 'SLA signed', status: 'Not submitted' },
@@ -80,13 +89,28 @@ export default function Dashboard({ setActivePage }) {
         <span style={{ fontSize: 11, color: C.textSec, background: '#f1f5f9', padding: '3px 8px', borderRadius: 4 }}>Mar–Apr 2026 · All districts</span>
       </div>
 
-      {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,minmax(0,1fr))', gap: 12, marginBottom: 16 }}>
-        <KPI label="Reporting partners" val="61" sub="+5 onboarded this cycle" subColor={C.green700} />
-        <KPI label="Schools reached" val="842" sub="Across 14 districts" />
-        <KPI label="Beneficiaries this period" val="48,310" sub="58% female | 42% male" />
-        <KPI label="Active districts" val="14 / 16" sub="2 with no coverage" />
-        <KPI label="Reporting compliance" val="71%" sub="18 partners not submitted" alert />
+      {/* Provisional data banner (v3) */}
+      <div style={{
+        background: '#FFF8E1', border: '1px solid #FFC107', borderRadius: 6,
+        padding: '8px 14px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10,
+      }}>
+        <span style={{ fontSize: 14 }}>⚠️</span>
+        <div style={{ fontSize: 11, color: '#795548', lineHeight: 1.4 }}>
+          <strong>Provisional data</strong> — Mar–Apr 2026 reporting cycle is still open. Figures shown include data from {' '}
+          <strong>38 of 53</strong> partners and will change as submissions are received and verified.
+          Data marked <em>provisional</em> should not be cited externally.
+        </div>
+      </div>
+
+      {/* KPIs — 7 cards per v3 wireframe */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,minmax(0,1fr))', gap: 10, marginBottom: 16 }}>
+        <KPI label="Reporting partners" val="38 / 53" sub="+5 onboarded this cycle" subColor={C.green700} />
+        <KPI label="Schools reached" val="842" sub="14 districts · provisional" />
+        <KPI label="Beneficiaries this period" val="48,310" sub="58% F | 42% M · provisional" />
+        <KPI label="Schools w/ functional SRGBV mechanism" val="321" sub="321 of 842 meet ≥3 of 4 criteria" />
+        <KPI label="SRGBV cases reported" val="134" sub="Across 9 districts" />
+        <KPI label="SRGBV cases referred" val="97" sub="72% referral rate" />
+        <KPI label="Reporting compliance" val="72%" sub="15 partners not submitted" alert />
       </div>
 
       {/* Row: Map + Alerts */}
@@ -156,13 +180,15 @@ export default function Dashboard({ setActivePage }) {
         </Panel>
       </div>
 
-      {/* Row: Charts */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
-        {/* Activities by focus area */}
+      {/* Row: Charts — 2×2 grid matching wireframe */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+
+        {/* [R1 C1] Activities by focus area — bars with counts on top */}
         <Panel title="Activities by focus area">
-          <div style={{ background: '#f8fafc', borderRadius: 6, height: 140, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'flex-end', padding: '10px 8px 0', overflow: 'hidden' }}>
+          <div style={{ background: '#f8fafc', borderRadius: 6, height: 170, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'flex-end', padding: '20px 8px 0', overflow: 'visible', position: 'relative' }}>
             {bars.map((b, i) => (
               <div key={b.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+                <span style={{ fontSize: 9, fontWeight: 600, color: barColors[i] === '#dbeeff' ? C.blue600 : barColors[i], marginBottom: 3 }}>{b.val}</span>
                 <div title={`${b.label}: ${b.val}`} style={{ width: '80%', height: `${b.h}%`, background: barColors[i], borderRadius: '3px 3px 0 0' }} />
               </div>
             ))}
@@ -172,9 +198,9 @@ export default function Dashboard({ setActivePage }) {
           </div>
         </Panel>
 
-        {/* Activities by objective */}
+        {/* [R1 C2] Activities by objective */}
         <Panel title="Activities by objective" annotation="Strategic view">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 4 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 4 }}>
             {[
               { label: 'Obj 1 — Gender-equitable behaviours', val: 214, pct: 56, color: '#185FA5', partners: 28 },
               { label: 'Obj 2 — Institutional & community capacity', val: 312, pct: 82, color: '#378ADD', partners: 41 },
@@ -192,63 +218,120 @@ export default function Dashboard({ setActivePage }) {
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${C.borderLight}`, fontSize: 10, color: C.textMuted }}>
+          <div style={{ marginTop: 14, paddingTop: 8, borderTop: `1px solid ${C.borderLight}`, fontSize: 10, color: C.textMuted }}>
             622 activities total · <span style={{ color: C.blue600, cursor: 'pointer' }}>View by tactic →</span>
           </div>
         </Panel>
 
-        {/* Beneficiaries over time */}
+        {/* [R2 C1] Beneficiaries over time — stacked bar chart */}
         <Panel title="Beneficiaries over time" annotation="6-month">
-          <svg width="100%" height="140" viewBox="0 0 220 130" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
-            <line x1="22" y1="8" x2="22" y2="112" stroke="#e2e8f0" strokeWidth="1"/>
-            <line x1="22" y1="112" x2="215" y2="112" stroke="#e2e8f0" strokeWidth="1"/>
-            <line x1="22" y1="28" x2="215" y2="28" stroke="#f1f5f9" strokeWidth="0.8" strokeDasharray="3,2"/>
-            <line x1="22" y1="58" x2="215" y2="58" stroke="#f1f5f9" strokeWidth="0.8" strokeDasharray="3,2"/>
-            <line x1="22" y1="85" x2="215" y2="85" stroke="#f1f5f9" strokeWidth="0.8" strokeDasharray="3,2"/>
-            <text x="18" y="31" fontSize="7" fill="#94a3b8" textAnchor="end" fontFamily="sans-serif">50k</text>
-            <text x="18" y="61" fontSize="7" fill="#94a3b8" textAnchor="end" fontFamily="sans-serif">30k</text>
-            <text x="18" y="88" fontSize="7" fill="#94a3b8" textAnchor="end" fontFamily="sans-serif">15k</text>
-            <polyline points="27,102 65,90 103,75 141,57 179,42 215,30" fill="none" stroke="#185FA5" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"/>
-            <polyline points="27,106 65,98 103,89 141,74 179,63 215,55" fill="none" stroke="#9FE1CB" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" strokeDasharray="4,2"/>
-            {[27,65,103,141,179,215].map((x, i) => {
-              const ys = [102,90,75,57,42,30];
-              return <circle key={x} cx={x} cy={ys[i]} r="3" fill="#185FA5"/>;
-            })}
-            {['Jul 25','Sep 25','Nov 25','Jan 26','Mar 26'].map((label, i) => (
-              <text key={label} x={27+i*38} y="124" fontSize="7" fill="#94a3b8" textAnchor="middle" fontFamily="sans-serif">{label}</text>
+          {/* Disaggregation controls */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
+            <span style={{ fontSize: 10, color: C.textSec, fontWeight: 500 }}>Break down by:</span>
+            <select style={{ fontSize: 10, padding: '3px 7px', border: `1px solid ${C.border}`, borderRadius: 4, background: C.white }}>
+              <option>Sex (F / M)</option>
+              <option>Beneficiary type (in-school / out-of-school)</option>
+              <option>Disability status</option>
+              <option>Age group (under 10 / 10–14 / 15–19)</option>
+              <option>Activity type</option>
+              <option>Objective</option>
+            </select>
+          </div>
+          <svg width="100%" height="160" viewBox="0 0 260 150" xmlns="http://www.w3.org/2000/svg" style={{ display: 'block' }}>
+            {/* Y-axis + gridlines */}
+            <line x1="28" y1="8" x2="28" y2="118" stroke="#e2e8f0" strokeWidth="1"/>
+            <line x1="28" y1="118" x2="255" y2="118" stroke="#e2e8f0" strokeWidth="1"/>
+            {[{y:38,label:'40k'},{y:58,label:'30k'},{y:78,label:'20k'},{y:98,label:'10k'}].map(({y,label}) => (
+              <g key={label}>
+                <line x1="28" y1={y} x2="255" y2={y} stroke="#f1f5f9" strokeWidth="0.8" strokeDasharray="3,2"/>
+                <text x="24" y={y+3} fontSize="7" fill="#94a3b8" textAnchor="end" fontFamily="sans-serif">{label}</text>
+              </g>
             ))}
-            <text x="215" y="124" fontSize="7.5" fill="#185FA5" textAnchor="middle" fontFamily="sans-serif" fontWeight="600">48.3k</text>
+            {/* Stacked bars: F (dark blue, bottom) + M (light blue, on top) */}
+            {STACKED_DATA.map((d, i) => {
+              const maxVal = 50000;
+              const chartH = 110; // usable height (y 8–118)
+              const baseY = 118;
+              const hF = Math.round((d.f / maxVal) * chartH);
+              const hM = Math.round((d.m / maxVal) * chartH);
+              const total = d.f + d.m;
+              const hTotal = hF + hM;
+              const barW = 28;
+              const x = 38 + i * 44;
+              const totalLabel = total >= 1000 ? `${(total/1000).toFixed(1).replace(/\.0$/,'')}k` : total;
+              return (
+                <g key={d.label}>
+                  {/* Female — bottom */}
+                  <rect x={x} y={baseY - hF} width={barW} height={hF} fill="#185FA5" rx="2"/>
+                  {/* Male — stacked above */}
+                  <rect x={x} y={baseY - hF - hM} width={barW} height={hM} fill="#85B7EB" rx="2"/>
+                  {/* Total label on top */}
+                  <text x={x + barW/2} y={baseY - hTotal - 3} fontSize="7.5" fill="#334155" textAnchor="middle" fontFamily="sans-serif" fontWeight="600">{totalLabel}</text>
+                  {/* X-axis labels */}
+                  <text x={x + barW/2} y="130" fontSize="7" fill="#94a3b8" textAnchor="middle" fontFamily="sans-serif">{d.label}</text>
+                  <text x={x + barW/2} y="139" fontSize="6.5" fill="#94a3b8" textAnchor="middle" fontFamily="sans-serif">{d.sub}</text>
+                </g>
+              );
+            })}
           </svg>
-          <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+          <div style={{ display: 'flex', gap: 16, marginTop: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: C.textSec }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#185FA5' }} />Total
+              <div style={{ width: 10, height: 10, borderRadius: 2, background: '#185FA5' }} />Female
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: C.textSec }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#9FE1CB' }} />Female
+              <div style={{ width: 10, height: 10, borderRadius: 2, background: '#85B7EB' }} />Male
             </div>
+            <span style={{ marginLeft: 'auto', fontSize: 10, color: C.textMuted }}>Total: <strong style={{ color: C.text }}>48.3k</strong></span>
           </div>
         </Panel>
 
-        {/* Submission status donut */}
-        <Panel title="Submission status — Mar–Apr 2026">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10 }}>
-            <svg width="92" height="92" viewBox="0 0 92 92" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="46" cy="46" r="35" fill="none" stroke="#e2e8f0" strokeWidth="13"/>
-              <circle cx="46" cy="46" r="35" fill="none" stroke="#185FA5" strokeWidth="13" strokeDasharray="138 219.9" strokeDashoffset="55" transform="rotate(-90 46 46)"/>
-              <circle cx="46" cy="46" r="35" fill="none" stroke="#EF9F27" strokeWidth="13" strokeDasharray="43.9 219.9" strokeDashoffset="-83" transform="rotate(-90 46 46)"/>
-              <circle cx="46" cy="46" r="35" fill="none" stroke="#E24B4A" strokeWidth="13" strokeDasharray="37.9 219.9" strokeDashoffset="-126.9" transform="rotate(-90 46 46)"/>
-              <text x="46" y="50" fontSize="15" fontWeight="600" fill="#1a1a2e" textAnchor="middle" fontFamily="sans-serif">71%</text>
-            </svg>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {[['#185FA5','Submitted (43)'],['#EF9F27','Draft (11)'],['#E24B4A','Not submitted (7)']].map(([color, label]) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: C.textSec }}>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, flexShrink: 0 }} />
-                  {label}
-                </div>
-              ))}
+        {/* [R2 C2] Submission & verification status — two donuts */}
+        <Panel title="Submission & verification status — Mar–Apr 2026">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {/* Submission donut */}
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: C.textSec, marginBottom: 8, textAlign: 'center' }}>Submission</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+                <svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="40" cy="40" r="30" fill="none" stroke="#e2e8f0" strokeWidth="11"/>
+                  <circle cx="40" cy="40" r="30" fill="none" stroke="#185FA5" strokeWidth="11" strokeDasharray="135.1 188.5" strokeDashoffset="47" transform="rotate(-90 40 40)"/>
+                  <circle cx="40" cy="40" r="30" fill="none" stroke="#EF9F27" strokeWidth="11" strokeDasharray="35.6 188.5" strokeDashoffset="-88.1" transform="rotate(-90 40 40)"/>
+                  <circle cx="40" cy="40" r="30" fill="none" stroke="#E24B4A" strokeWidth="11" strokeDasharray="17.7 188.5" strokeDashoffset="-123.7" transform="rotate(-90 40 40)"/>
+                  <text x="40" y="44" fontSize="13" fontWeight="700" fill="#1a1a2e" textAnchor="middle" fontFamily="sans-serif">72%</text>
+                </svg>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {[['#185FA5','Submitted','38'],['#EF9F27','Draft','10'],['#E24B4A','Not submitted','5']].map(([color, label, n]) => (
+                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: C.textSec }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                    <span style={{ flex: 1 }}>{label}</span><span style={{ fontWeight: 600, color: C.text }}>{n}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Verification donut */}
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: C.textSec, marginBottom: 8, textAlign: 'center' }}>Verification</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
+                <svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="40" cy="40" r="30" fill="none" stroke="#e2e8f0" strokeWidth="11"/>
+                  <circle cx="40" cy="40" r="30" fill="none" stroke="#10b981" strokeWidth="11" strokeDasharray="94.2 188.5" strokeDashoffset="47" transform="rotate(-90 40 40)"/>
+                  <circle cx="40" cy="40" r="30" fill="none" stroke="#85B7EB" strokeWidth="11" strokeDasharray="47.1 188.5" strokeDashoffset="-47.2" transform="rotate(-90 40 40)"/>
+                  <circle cx="40" cy="40" r="30" fill="none" stroke="#e2e8f0" strokeWidth="11" strokeDasharray="47.2 188.5" strokeDashoffset="-94.3" transform="rotate(-90 40 40)"/>
+                  <text x="40" y="44" fontSize="13" fontWeight="700" fill="#1a1a2e" textAnchor="middle" fontFamily="sans-serif">50%</text>
+                </svg>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {[['#10b981','Verified','22'],['#85B7EB','Pending review','21'],['#e2e8f0','Not yet reviewed','18']].map(([color, label, n]) => (
+                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: C.textSec }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, flexShrink: 0, border: color === '#e2e8f0' ? `1px solid ${C.border}` : 'none' }} />
+                    <span style={{ flex: 1 }}>{label}</span><span style={{ fontWeight: 600, color: C.text }}>{n}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-          <div style={{ fontSize: 10, color: C.textMuted, paddingTop: 8, borderTop: `1px solid ${C.borderLight}` }}>
+          <div style={{ fontSize: 10, color: C.textMuted, paddingTop: 10, borderTop: `1px solid ${C.borderLight}`, marginTop: 10 }}>
             Deadline: 30 June 2026 · <span style={{ color: C.blue600, cursor: 'pointer' }}>Send reminders to 18 →</span>
           </div>
         </Panel>

@@ -39,19 +39,21 @@ export const FOCUS_AREAS = [
   '8. Other',
 ];
 
+// Data dict 5.4 — Activity Types
 export const ACTIVITY_TYPES = [
   'Training / Capacity Building',
-  'Community Outreach',
-  'Awareness Campaign',
-  'Safe Space Activities',
-  'Policy / Advocacy',
-  'Research / Assessment',
-  'Coordination Meeting',
-  'Other',
+  'Safe Space / Club Establishment',
+  'Awareness / Community Sensitisation',
+  'Counselling / Psychosocial Support',
+  'Cash / Material Transfer',
+  'Referral / Case Management',
+  'Governance / Policy Development',
+  'Other (specify)',
 ];
 
+// Data dict 5.5
 export const IMPLEMENTATION_STATUSES = [
-  'Completed', 'Ongoing', 'Delayed', 'Cancelled',
+  'Not started', 'Ongoing', 'Completed', 'Delayed',
 ];
 
 export const GOV_COUNTERPARTS = [
@@ -91,4 +93,23 @@ export const SECTIONS = [
   { id: 'K', label: 'Evidence uploads', page: 3, required: false },
   { id: 'L', label: 'Next period plan', page: 3, required: false },
   { id: 'M', label: 'Data quality', page: 3, required: false, systemManaged: true },
+];
+
+// All 9 tactics (data dictionary 5.4)
+export const TACTICS = [
+  'Carry Out Nationwide Media Campaigns',
+  'Strengthen Peer Education Programs',
+  'Conduct School-Based Awareness Campaigns',
+  'Strengthen Capacity of School Personnel',
+  'Establish Safe and Inclusive Learning Environments',
+  'Implement Community-Based Monitoring and Engagement',
+  'Enforce Policy',
+  'Strengthen Reporting and Referral Systems',
+  'Engage Stakeholders for Sustainability',
+];
+
+export const INTERVENTION_LEVELS = [
+  'School-based',
+  'Community-based',
+  'System-level',
 ];

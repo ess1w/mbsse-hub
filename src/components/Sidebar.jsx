@@ -2,7 +2,7 @@ import React from 'react';
 import { C } from '../tokens.js';
 
 const NAV = [
-  { section: 'Main', items: ['Dashboard', 'Coverage map', 'Partner directory', 'Submissions'] },
+  { section: 'Main', items: ['Dashboard', 'Coverage map', 'Partner directory', 'Reporting form', 'Submissions'] },
   { section: 'Reports', items: ['Activity reports', 'Export data'] },
   { section: 'Admin', items: ['User management', 'Form settings', 'System settings'] },
 ];
@@ -10,7 +10,9 @@ const NAV = [
 const PAGE_MAP = {
   'Dashboard': 'dashboard',
   'Partner directory': 'directory',
+  'Reporting form': 'form',
   'Activity reports': 'form',
+  'User management': 'users',
 };
 
 export default function Sidebar({ activePage, setActivePage }) {

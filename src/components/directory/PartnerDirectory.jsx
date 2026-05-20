@@ -1,9 +1,75 @@
-import React, { useState, useMemo } from 'react';
-import { PARTNERS, STAT_SUMMARY, FOCUS_AREAS, OBJECTIVES, DISTRICTS } from '../../data/partners.js';
+import React, { useState, useMemo, useEffect } from 'react';
+import { FOCUS_AREAS, OBJECTIVES, DISTRICTS } from '../../data/partners.js';
 import { C, pill, statusVariant, objColor } from '../../tokens.js';
 import PartnerDrawer from './PartnerDrawer.jsx';
+import { organisationsApi } from '../../api/client.js';
 
-const PARTNER_TYPES = ['INGO', 'Local NGO', 'UN Agency', 'Government', 'Academic'];
+/** Convert API response (data-dict field names) to the camelCase shape the UI expects */
+function toUIFormat(org) {
+  const fmtMoney = (amt) => {
+    if (!amt) return null;
+    const n = parseFloat(amt);
+    if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+    if (n >= 1_000)     return `$${Math.round(n / 1_000)}K`;
+    return `$${n.toLocaleString()}`;
+  };
+  const fmtDate = (iso) => iso
+    ? new Date(iso).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
+    : null;
+  const fmtFull = (iso) => iso
+    ? new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    : null;
+
+  // Derive SLA display label from boolean sla_signed
+  const slaStatus = org.sla_signed ? 'Signed' : 'Pending';
+
+  // Compute total budget across projects and derive project period
+  const budgets = (org.projects || []).map(p => p.budget_usd).filter(Boolean);
+  const totalBudget = budgets.length ? budgets.reduce((a, b) => a + b, 0) : null;
+
+  const starts = (org.projects || []).map(p => p.project_start).filter(Boolean).sort();
+  const ends   = (org.projects || []).map(p => p.project_end).filter(Boolean).sort().reverse();
+  const period = [fmtDate(starts[0]), fmtDate(ends[0])].filter(Boolean).join(' – ');
+
+  // Project status: "Active" if any active project, else first project's status
+  const activeProjects = (org.projects || []).filter(p => p.project_status === 'Active');
+  const projectStatus = activeProjects.length > 0 ? 'Active' : ((org.projects[0]?.project_status) || '—');
+
+  return {
+    id:               org.org_id,
+    name:             org.org_name,
+    type:             org.org_type,
+    objectives:       org.objectives || [],
+    focusAreas:       org.focus_areas || [],
+    districts:        org.districts || [],
+    projects:         org.project_count || 0,
+    projectStatus,                                    // v3: new column
+    slaStatus,
+    sla_signed:       org.sla_signed,
+    status:           org.status,
+    submissionStatus: org.submission_status,
+    lastSubmitted:    fmtFull(org.last_submitted),
+    focalPerson:      org.focal_person || '—',
+    email:            org.email || '—',
+    phone:            org.phone || '—',
+    fundingSource:    '—',
+    govCounterpart:   '—',
+    totalBudget:      fmtMoney(totalBudget) || '—',
+    projectPeriod:    period || '—',
+    schoolsReached:   null,
+    beneficiaries:    null,
+    projectList: (org.projects || []).map(p => ({
+      title:     p.project_title,
+      obj:       (p.objective || []).join(', '),
+      focusArea: (p.focus_area || []).join(', '),
+      period:    [fmtDate(p.project_start), fmtDate(p.project_end)].filter(Boolean).join('–'),
+      budget:    fmtMoney(p.budget_usd) || '—',
+      status:    p.project_status || 'Active',
+    })),
+  };
+}
+
+const PARTNER_TYPES = ['CSO', 'UN Agency', 'Government', 'Other'];
 
 function StatCard({ val, label, sub, alert }) {
   return (
@@ -40,26 +106,46 @@ function FocusTag({ label }) {
 }
 
 export default function PartnerDirectory() {
+  const [partners, setPartners] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [filterObj, setFilterObj] = useState('All objectives');
   const [filterFocus, setFilterFocus] = useState('All focus areas');
   const [filterDistrict, setFilterDistrict] = useState('All districts');
   const [filterStatus, setFilterStatus] = useState('All statuses');
   const [filterSla, setFilterSla] = useState('All SLA statuses');
+  const [filterProjectStatus, setFilterProjectStatus] = useState('All project statuses');
   const [view, setView] = useState('table');
   const [expandedId, setExpandedId] = useState(null);
   const [drawerPartner, setDrawerPartner] = useState(null);
   const [sortCol, setSortCol] = useState('name');
   const [sortDir, setSortDir] = useState('asc');
 
+  useEffect(() => {
+    organisationsApi.list()
+      .then(data => setPartners(data.map(toUIFormat)))
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const statSummary = useMemo(() => {
+    const total       = partners.length;
+    const submitted   = partners.filter(p => p.submissionStatus === 'Submitted' || p.submissionStatus === 'Verified').length;
+    const notSub      = partners.filter(p => p.submissionStatus === 'Not submitted').length;
+    const slaSigned   = partners.filter(p => p.sla_signed).length;
+    return { total, submitted, notSubmitted: notSub, slaSigned, slaPending: total - slaSigned, complianceRate: total ? Math.round(submitted / total * 100) : 0 };
+  }, [partners]);
+
   const filtered = useMemo(() => {
-    let list = PARTNERS;
+    let list = partners;
     if (search) list = list.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.focalPerson.toLowerCase().includes(search.toLowerCase()));
     if (filterObj !== 'All objectives') list = list.filter(p => p.objectives.some(o => o === filterObj));
     if (filterFocus !== 'All focus areas') list = list.filter(p => p.focusAreas.some(f => f.includes(filterFocus)));
     if (filterDistrict !== 'All districts') list = list.filter(p => p.districts.some(d => d.includes(filterDistrict)));
     if (filterStatus !== 'All statuses') list = list.filter(p => p.submissionStatus === filterStatus);
     if (filterSla !== 'All SLA statuses') list = list.filter(p => p.slaStatus === filterSla);
+    if (filterProjectStatus !== 'All project statuses') list = list.filter(p => p.projectStatus === filterProjectStatus);
 
     list = [...list].sort((a, b) => {
       let av = sortCol === 'name' ? a.name : sortCol === 'status' ? a.submissionStatus : a.slaStatus;
@@ -67,7 +153,7 @@ export default function PartnerDirectory() {
       return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
     });
     return list;
-  }, [search, filterObj, filterFocus, filterDistrict, filterStatus, filterSla, sortCol, sortDir]);
+  }, [partners, search, filterObj, filterFocus, filterDistrict, filterStatus, filterSla, filterProjectStatus, sortCol, sortDir]);
 
   const handleSort = (col) => {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -83,13 +169,25 @@ export default function PartnerDirectory() {
   });
   const tdStyle = { padding: '10px 14px', borderBottom: `1px solid ${C.borderLight}`, verticalAlign: 'middle' };
 
+  if (loading) return (
+    <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.textMuted, fontSize: 13 }}>
+      Loading organisations…
+    </main>
+  );
+
+  if (error) return (
+    <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.red700, fontSize: 13 }}>
+      Failed to load: {error}
+    </main>
+  );
+
   return (
     <main style={{ flex: 1, padding: '18px 20px', overflow: 'auto', minWidth: 0 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
         <div>
           <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 3 }}>Partner Directory</div>
-          <div style={{ fontSize: 11, color: C.textSec }}>All registered organisations — 61 active · Last updated 25 Apr 2026</div>
+          <div style={{ fontSize: 11, color: C.textSec }}>{statSummary.total} registered organisations</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button style={{ padding: '7px 12px', background: C.white, color: C.textSec, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>↓ Export CSV</button>
@@ -99,10 +197,10 @@ export default function PartnerDirectory() {
 
       {/* Stat strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
-        <StatCard val={STAT_SUMMARY.total} label="Registered organisations" sub={`+${STAT_SUMMARY.newThisCycle} onboarded this cycle`} />
-        <StatCard val={STAT_SUMMARY.submitted} label="Submitted this period" sub={`${STAT_SUMMARY.complianceRate}% compliance rate`} />
-        <StatCard val={STAT_SUMMARY.slaSigned} label="SLAs signed" sub={`${STAT_SUMMARY.slaPending} pending signature`} />
-        <StatCard val={STAT_SUMMARY.notSubmitted} label="Not yet submitted" sub="Deadline: 30 Jun 2026" alert />
+        <StatCard val={statSummary.total}        label="Registered organisations" sub="Active partners" />
+        <StatCard val={statSummary.submitted}    label="Submitted this period"    sub={`${statSummary.complianceRate}% compliance rate`} />
+        <StatCard val={statSummary.slaSigned}    label="SLAs signed"              sub={`${statSummary.slaPending} pending signature`} />
+        <StatCard val={statSummary.notSubmitted} label="Not yet submitted"        sub="Deadline: 30 Jun 2026" alert />
       </div>
 
       {/* Toolbar */}
@@ -132,8 +230,12 @@ export default function PartnerDirectory() {
           <option>All SLA statuses</option>
           {['Signed', 'Pending'].map(s => <option key={s}>{s}</option>)}
         </select>
-        <button onClick={() => { setSearch(''); setFilterObj('All objectives'); setFilterFocus('All focus areas'); setFilterDistrict('All districts'); setFilterStatus('All statuses'); setFilterSla('All SLA statuses'); }} style={{ fontSize: 11, padding: '5px 10px', borderRadius: 5, background: 'transparent', color: C.textSec, border: `1px solid ${C.border}`, cursor: 'pointer' }}>Reset</button>
-        <span style={{ fontSize: 11, color: C.textMuted, marginLeft: 'auto' }}>Showing {filtered.length} of {STAT_SUMMARY.total} organisations</span>
+        <select value={filterProjectStatus} onChange={e => setFilterProjectStatus(e.target.value)} style={selW}>
+          <option>All project statuses</option>
+          {['Active', 'Closed', 'Planned'].map(s => <option key={s}>{s}</option>)}
+        </select>
+        <button onClick={() => { setSearch(''); setFilterObj('All objectives'); setFilterFocus('All focus areas'); setFilterDistrict('All districts'); setFilterStatus('All statuses'); setFilterSla('All SLA statuses'); setFilterProjectStatus('All project statuses'); }} style={{ fontSize: 11, padding: '5px 10px', borderRadius: 5, background: 'transparent', color: C.textSec, border: `1px solid ${C.border}`, cursor: 'pointer' }}>Reset</button>
+        <span style={{ fontSize: 11, color: C.textMuted, marginLeft: 'auto' }}>Showing {filtered.length} of {statSummary.total} organisations</span>
         <div style={{ display: 'flex', border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden', marginLeft: 8 }}>
           {['table', 'cards'].map(v => (
             <button key={v} onClick={() => setView(v)} style={{
@@ -156,6 +258,7 @@ export default function PartnerDirectory() {
                   <th style={{ ...thStyle(), cursor: 'default' }}>Objective(s)</th>
                   <th style={{ ...thStyle(), cursor: 'default' }}>Focus area(s)</th>
                   <th style={{ ...thStyle(), cursor: 'default' }}>Districts</th>
+                  <th style={{ ...thStyle(), cursor: 'default' }}>Project status</th>
                   <th style={{ ...thStyle(), cursor: 'default' }}>Proj.</th>
                   <th onClick={() => handleSort('sla')} style={thStyle('sla')}>SLA {sortCol === 'sla' ? (sortDir === 'asc' ? '↓' : '↑') : '↕'}</th>
                   <th onClick={() => handleSort('status')} style={thStyle('status')}>Submission {sortCol === 'status' ? (sortDir === 'asc' ? '↓' : '↑') : '↕'}</th>
@@ -187,6 +290,9 @@ export default function PartnerDirectory() {
                           <span style={{ fontSize: 10, color: C.textSec }}>{p.districts.slice(0, 3).join(', ')}</span>
                           {p.districts.length > 3 && <span style={{ fontSize: 10, color: C.textMuted }}> +{p.districts.length - 3}</span>}
                         </td>
+                        <td style={tdStyle}>
+                          <span style={pill(statusVariant(p.projectStatus))}>{p.projectStatus}</span>
+                        </td>
                         <td style={{ ...tdStyle, textAlign: 'center', fontSize: 11, color: C.textSec }}>{p.projects}</td>
                         <td style={tdStyle}><span style={pill(statusVariant(p.slaStatus))}>{p.slaStatus}</span></td>
                         <td style={tdStyle}><span style={pill(statusVariant(p.submissionStatus))}>{p.submissionStatus}</span></td>
@@ -217,7 +323,7 @@ export default function PartnerDirectory() {
             </table>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderTop: `1px solid ${C.borderLight}`, background: C.white }}>
-            <span style={{ fontSize: 11, color: C.textMuted }}>Showing {filtered.length} of {STAT_SUMMARY.total} organisations</span>
+            <span style={{ fontSize: 11, color: C.textMuted }}>Showing {filtered.length} of {statSummary.total} organisations</span>
             <div style={{ display: 'flex', gap: 4 }}>
               {[1, 2, 3, '…', 9].map((p, i) => (
                 <button key={i} style={{

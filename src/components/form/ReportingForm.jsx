@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FORM_OBJECTIVES, FOCUS_AREAS, ACTIVITY_TYPES, IMPLEMENTATION_STATUSES, GOV_COUNTERPARTS, REFERRAL_PATHWAYS, BUDGET_STATUSES, DISTRICTS, SECTIONS } from '../../data/formData.js';
+import React, { useState, useRef } from 'react';
+import { FORM_OBJECTIVES, FOCUS_AREAS, ACTIVITY_TYPES, IMPLEMENTATION_STATUSES, GOV_COUNTERPARTS, REFERRAL_PATHWAYS, BUDGET_STATUSES, DISTRICTS, SECTIONS, TACTICS, INTERVENTION_LEVELS } from '../../data/formData.js';
 import { C } from '../../tokens.js';
 
 const PAGE_SECTIONS = {
@@ -14,30 +14,43 @@ export default function ReportingForm() {
   const [currentPage, setCurrentPage] = useState(2);
   const [completedPages, setCompletedPages] = useState([1]);
   const [completedSections, setCompletedSections] = useState(COMPLETED_INIT);
-  const [form, setForm] = useState({
-    focusAreas: ['1. SRGBV Prevention & Response'],
-    objective: '',
-    tactic: '',
-    activityType: 'Training / Capacity Building',
-    interventionLevel: 'School-based',
+  // Activity template for multi-activity repeater (Section C/D)
+  const newActivity = () => ({
+    _id: Date.now(),
+    focusAreas: [],
+    objectives: [],
+    tactics: [],
+    activityType: '',
+    interventionLevels: [],
     activityTitle: '',
     implementationStatus: '',
     description: '',
     plannedVsActual: '',
     startDate: '',
     endDate: '',
-    schoolsReached: 0,
-    teachersTrained: 0,
-    studentsReached: 0,
-    communitySessions: 0,
-    safeSpaces: 0,
-    srgbvReferrals: 0,
-    disaggFemale: 0,
-    disaggMale: 0,
-    age1014: 0,
-    age1519: 0,
-    withDisability: 0,
-    outOfSchool: 0,
+    // Section E — output indicators per activity (data dict 5.7)
+    schools_pre_primary: 0, schools_primary: 0, schools_jss: 0, schools_sss: 0,
+    schools_with_focal_person: 0, schools_with_reporting_protocol: 0,
+    schools_with_referral_pathway: 0, schools_held_schoolwide_campaign: 0,
+    schools_held_peer_led_session: 0, schools_with_safe_space: 0,
+    students_inschool_f: 0, students_inschool_m: 0,
+    students_inschool_age_10_14: 0, students_inschool_age_15_19: 0, students_inschool_age_under10: 0,
+    students_oos_f: 0, students_oos_m: 0,
+    students_oos_age_10_14: 0, students_oos_age_15_19: 0,
+    students_disability_f: 0, students_disability_m: 0,
+    pregnant_girls: 0, teenage_mothers: 0,
+    students_used_reporting_mechanism: 0, students_confident_reporting: 0,
+    teachers_f: 0, teachers_m: 0, teachers_demonstrated_grp: 0,
+    district_officials_f: 0, district_officials_m: 0,
+    central_officials_f: 0, central_officials_m: 0,
+    community_members_f: 0, community_members_m: 0,
+    community_sessions: 0, policy_dialogue_events: 0,
+  });
+
+  const [activities, setActivities] = useState([newActivity()]);
+  const [activeActivityIdx, setActiveActivityIdx] = useState(0);
+
+  const [form, setForm] = useState({
     keyResults: '',
     observedChanges: '',
     earlyOutcomes: '',
@@ -63,8 +76,83 @@ export default function ReportingForm() {
     school: 'Gondama Secondary School',
     emisCode: '10042',
   });
+
+  // Helpers for per-activity field updates
+  const setActivityField = (idx, key, val) =>
+    setActivities(prev => prev.map((a, i) => i === idx ? { ...a, [key]: val } : a));
+  const toggleActivityArr = (idx, key, val) =>
+    setActivities(prev => prev.map((a, i) => {
+      if (i !== idx) return a;
+      return { ...a, [key]: a[key].includes(val) ? a[key].filter(v => v !== val) : [...a[key], val] };
+    }));
+  const addActivity = () => {
+    const next = newActivity();
+    setActivities(prev => [...prev, next]);
+    setActiveActivityIdx(activities.length);
+  };
+  const removeActivity = (idx) => {
+    setActivities(prev => prev.filter((_, i) => i !== idx));
+    setActiveActivityIdx(Math.max(0, Math.min(activeActivityIdx, activities.length - 2)));
+  };
   const [autosaveLabel, setAutosaveLabel] = useState('Auto-saved 2 min ago');
   const [submitted, setSubmitted] = useState(false);
+
+  // File upload state (Section K)
+  const [uploadedPhotos, setUploadedPhotos] = useState([]);
+  const [uploadedDocs,   setUploadedDocs]   = useState([]);
+  const [dragOverPhoto,  setDragOverPhoto]  = useState(false);
+  const [dragOverDoc,    setDragOverDoc]    = useState(false);
+  const photoInputRef = useRef(null);
+  const docInputRef   = useRef(null);
+
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024)    return `${bytes} B`;
+    if (bytes < 1048576) return `${Math.round(bytes / 1024)} KB`;
+    return `${(bytes / 1048576).toFixed(1)} MB`;
+  };
+
+  const fileIcon = (name) => {
+    const ext = name.split('.').pop().toLowerCase();
+    if (['jpg','jpeg','png','gif'].includes(ext)) return '📷';
+    if (ext === 'pdf')  return '📄';
+    if (['doc','docx'].includes(ext)) return '📝';
+    if (['xls','xlsx'].includes(ext)) return '📊';
+    return '📎';
+  };
+
+  const processPhotoFiles = (files) => {
+    const processed = files.map(f => {
+      const overSize = f.size > 5 * 1024 * 1024;
+      const isImage  = f.type.startsWith('image/');
+      return {
+        id:        Date.now() + Math.random(),
+        name:      f.name,
+        sizeLabel: formatFileSize(f.size),
+        preview:   isImage && !overSize ? URL.createObjectURL(f) : null,
+        error:     overSize ? 'Exceeds 5 MB limit — please compress before uploading' : null,
+      };
+    });
+    setUploadedPhotos(prev => [...prev, ...processed]);
+    if (photoInputRef.current) photoInputRef.current.value = '';
+  };
+
+  const processDocFiles = (files) => {
+    const allowed = ['pdf','doc','docx','xls','xlsx'];
+    const processed = files.map(f => {
+      const ext      = f.name.split('.').pop().toLowerCase();
+      const overSize = f.size > 10 * 1024 * 1024;
+      const badType  = !allowed.includes(ext);
+      return {
+        id:        Date.now() + Math.random(),
+        name:      f.name,
+        sizeLabel: formatFileSize(f.size),
+        preview:   null,
+        error:     overSize ? 'Exceeds 10 MB limit' : badType ? 'File type not supported' : null,
+      };
+    });
+    setUploadedDocs(prev => [...prev, ...processed]);
+    if (docInputRef.current) docInputRef.current.value = '';
+  };
 
   const totalSections = 13;
   const completedCount = Object.keys(completedSections).filter(s => completedSections[s]).length;
@@ -333,67 +421,112 @@ export default function ReportingForm() {
                   </div>
                 </>)}
 
-                {/* C — Activity Classification */}
+                {/* C — Activity Classification (multi-activity repeater per v3) */}
                 {section('C', C.blue600, <>
                   <SecHeader id="C" label="Activity classification" required />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {fl('Focus area(s) *', (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, padding: '7px 10px', border: `1px solid ${C.border}`, borderRadius: 5, minHeight: 36 }}>
-                        {FOCUS_AREAS.map(area => (
-                          <div key={area} onClick={() => toggleFocusArea(area)} style={{
-                            fontSize: 10, padding: '3px 9px', borderRadius: 3, cursor: 'pointer',
-                            border: `1px solid ${form.focusAreas.includes(area) ? C.blue600 : C.border}`,
-                            background: form.focusAreas.includes(area) ? C.blue600 : C.white,
-                            color: form.focusAreas.includes(area) ? C.white : C.textSec,
-                            userSelect: 'none',
-                          }}>{area}</div>
-                        ))}
+                  <div style={{ fontSize: 10, color: C.textSec, marginBottom: 10, padding: '6px 10px', background: C.blueBg, borderRadius: 5, border: `1px solid ${C.blue100}` }}>
+                    You can report multiple activities. Use the tabs below to add or switch between activities.
+                  </div>
+
+                  {/* Activity tabs */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 14, borderBottom: `1px solid ${C.border}` }}>
+                    {activities.map((act, idx) => (
+                      <div key={act._id} onClick={() => setActiveActivityIdx(idx)} style={{
+                        padding: '6px 14px', fontSize: 11, fontWeight: 500, cursor: 'pointer',
+                        borderBottom: activeActivityIdx === idx ? `2px solid ${C.blue600}` : '2px solid transparent',
+                        color: activeActivityIdx === idx ? C.blue600 : C.textSec,
+                        marginBottom: -1, display: 'flex', alignItems: 'center', gap: 6,
+                      }}>
+                        Activity {idx + 1}
+                        {act.activityType && <span style={{ fontSize: 9, color: C.textMuted }}>({act.activityType.split('/')[0].trim()})</span>}
+                        {activities.length > 1 && (
+                          <span onClick={e => { e.stopPropagation(); removeActivity(idx); }} style={{ fontSize: 10, color: C.red700, cursor: 'pointer', marginLeft: 4 }}>✕</span>
+                        )}
                       </div>
                     ))}
-                    <div style={g2}>
-                      {fl('Objective *', (
-                        <div>
-                          <select value={form.objective} onChange={e => { setField('objective', e.target.value); setField('tactic', ''); }}
-                            style={{ width: '100%', height: 33, border: `1px solid ${C.border}`, borderRadius: 5, padding: '0 10px', fontSize: 11, color: form.objective ? C.text : C.textMuted }}>
-                            <option value="">Select objective...</option>
-                            {FORM_OBJECTIVES.map(o => <option key={o.short} value={o.short}>{o.full}</option>)}
-                          </select>
-                          <div style={{ fontSize: 10, color: C.textMuted, marginTop: 3 }}>3 objectives available</div>
-                        </div>
-                      ))}
-                      {fl('Tactic *', 'options update based on objective', (
-                        <div style={{ opacity: form.objective ? 1 : 0.4, pointerEvents: form.objective ? 'auto' : 'none' }}>
-                          <select value={form.tactic} onChange={e => setField('tactic', e.target.value)}
-                            style={{ width: '100%', height: 33, border: `1px solid ${C.border}`, borderRadius: 5, padding: '0 10px', fontSize: 11, color: form.tactic ? C.text : C.textMuted }}>
-                            <option value="">{form.objective ? 'Select tactic...' : 'Select objective first...'}</option>
-                            {form.objective && FORM_OBJECTIVES.find(o => o.short === form.objective)?.tactics.map(t => <option key={t}>{t}</option>)}
-                          </select>
-                          {form.tactic && <div style={{ fontSize: 10, color: C.green700, marginTop: 3 }}>Tactic selected ✓</div>}
-                        </div>
-                      ))}
-                    </div>
-                    <div style={g2}>
-                      {fl('Activity type *', sel('activityType', ACTIVITY_TYPES))}
-                      {fl('Intervention level *', radio('interventionLevel', ['School-based', 'Community', 'System-level']))}
-                    </div>
+                    <button onClick={addActivity} style={{
+                      marginLeft: 8, padding: '4px 10px', fontSize: 10, border: `1px dashed ${C.blue600}`,
+                      borderRadius: 4, background: 'transparent', color: C.blue600, cursor: 'pointer', whiteSpace: 'nowrap',
+                    }}>+ Add activity</button>
                   </div>
-                </>)}
 
-                {/* D — Implementation Details */}
-                {section('D', C.textMuted, <>
-                  <SecHeader id="D" label="Activity implementation details" required />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    <div style={g2}>
-                      {fl('Activity title *', inp('activityTitle', 'Enter activity title...'))}
-                      {fl('Implementation status *', sel('implementationStatus', IMPLEMENTATION_STATUSES, 'Select status...'))}
-                    </div>
-                    {fl('Description * ', textarea('description', 'Brief description of the activity this period...'), 'max 500 characters')}
-                    <div style={g3}>
-                      {fl('Planned vs. actual', radio('plannedVsActual', ['As planned', 'Modified']))}
-                      {fl('Start date', inp('startDate', 'DD / MM / YYYY', 'date'))}
-                      {fl('End date', inp('endDate', 'DD / MM / YYYY', 'date'))}
-                    </div>
-                  </div>
+                  {/* Active activity fields */}
+                  {activities[activeActivityIdx] && (() => {
+                    const act = activities[activeActivityIdx];
+                    const idx = activeActivityIdx;
+                    const multiChip = (key, items) => (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '6px 8px', border: `1px solid ${C.border}`, borderRadius: 5, minHeight: 34 }}>
+                        {items.map(item => (
+                          <div key={item} onClick={() => toggleActivityArr(idx, key, item)} style={{
+                            fontSize: 10, padding: '3px 8px', borderRadius: 3, cursor: 'pointer', userSelect: 'none',
+                            border: `1px solid ${act[key].includes(item) ? C.blue600 : C.border}`,
+                            background: act[key].includes(item) ? C.blue600 : C.white,
+                            color: act[key].includes(item) ? C.white : C.textSec,
+                          }}>{item}</div>
+                        ))}
+                      </div>
+                    );
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {fl('Focus area(s) *', multiChip('focusAreas', FOCUS_AREAS))}
+                        <div style={g2}>
+                          {fl('Objective(s) *', multiChip('objectives', FORM_OBJECTIVES.map(o => o.full)))}
+                          {fl('Tactic(s) *', multiChip('tactics', (TACTICS || FORM_OBJECTIVES.flatMap(o => o.tactics || [])).filter((v, i, a) => a.indexOf(v) === i)))}
+                        </div>
+                        <div style={g2}>
+                          {fl('Activity type *', (
+                            <select value={act.activityType} onChange={e => setActivityField(idx, 'activityType', e.target.value)}
+                              style={{ width: '100%', height: 33, border: `1px solid ${C.border}`, borderRadius: 5, padding: '0 10px', fontSize: 11 }}>
+                              <option value="">Select activity type...</option>
+                              {ACTIVITY_TYPES.map(t => <option key={t}>{t}</option>)}
+                            </select>
+                          ))}
+                          {fl('Intervention level(s) *', multiChip('interventionLevels', ['School-based', 'Community-based', 'System-level']))}
+                        </div>
+                        {/* Section D fields inline with each activity */}
+                        <div style={{ borderTop: `1px dashed ${C.border}`, paddingTop: 10 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: C.textSec, marginBottom: 8 }}>D — Activity implementation details</div>
+                          <div style={g2}>
+                            {fl('Activity title *', (
+                              <input value={act.activityTitle} onChange={e => setActivityField(idx, 'activityTitle', e.target.value)}
+                                placeholder="Enter activity title..." style={{ width: '100%', height: 33, border: `1px solid ${C.border}`, borderRadius: 5, padding: '0 10px', fontSize: 11, boxSizing: 'border-box' }} />
+                            ))}
+                            {fl('Implementation status *', (
+                              <select value={act.implementationStatus} onChange={e => setActivityField(idx, 'implementationStatus', e.target.value)}
+                                style={{ width: '100%', height: 33, border: `1px solid ${C.border}`, borderRadius: 5, padding: '0 10px', fontSize: 11 }}>
+                                <option value="">Select status...</option>
+                                {IMPLEMENTATION_STATUSES.map(s => <option key={s}>{s}</option>)}
+                              </select>
+                            ))}
+                          </div>
+                          {fl('Description *', (
+                            <textarea value={act.description} onChange={e => setActivityField(idx, 'description', e.target.value)}
+                              placeholder="Brief description of the activity this period..." maxLength={500}
+                              style={{ width: '100%', height: 64, border: `1px solid ${C.border}`, borderRadius: 5, padding: '8px 10px', fontSize: 11, resize: 'vertical', boxSizing: 'border-box' }} />
+                          ), 'max 500 characters')}
+                          <div style={g3}>
+                            {fl('Planned vs. actual', (
+                              <div style={{ display: 'flex', gap: 10 }}>
+                                {['As planned', 'Modified'].map(opt => (
+                                  <label key={opt} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, cursor: 'pointer' }}>
+                                    <input type="radio" checked={act.plannedVsActual === opt} onChange={() => setActivityField(idx, 'plannedVsActual', opt)} /> {opt}
+                                  </label>
+                                ))}
+                              </div>
+                            ))}
+                            {fl('Start date', (
+                              <input type="date" value={act.startDate} onChange={e => setActivityField(idx, 'startDate', e.target.value)}
+                                style={{ width: '100%', height: 33, border: `1px solid ${C.border}`, borderRadius: 5, padding: '0 10px', fontSize: 11, boxSizing: 'border-box' }} />
+                            ))}
+                            {fl('End date', (
+                              <input type="date" value={act.endDate} onChange={e => setActivityField(idx, 'endDate', e.target.value)}
+                                style={{ width: '100%', height: 33, border: `1px solid ${C.border}`, borderRadius: 5, padding: '0 10px', fontSize: 11, boxSizing: 'border-box' }} />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </>)}
               </>
             )}
@@ -405,34 +538,207 @@ export default function ReportingForm() {
                   Page 2 of 3 <span style={{ fontSize: 10, fontWeight: 500, padding: '2px 8px', borderRadius: 4, background: C.blueBg, color: C.blue900 }}>Sections E – H · Results & coordination</span>
                 </div>
 
-                {/* E — Output Indicators */}
+                {/* E — Output Indicators (expanded per data dictionary Section 5.7, v3 wireframe) */}
                 {section('E', C.blue600, <>
                   <SecHeader id="E" label="Output indicators" required />
-                  {infoBanner('Enter totals for this reporting period only. Disaggregate by gender and age group where possible.')}
-                  <div style={g2}>
-                    <div>
-                      <div style={{ fontSize: 11, fontWeight: 500, color: C.textSec, marginBottom: 6 }}>Primary outputs</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {numRow('# schools reached', 'schoolsReached')}
-                        {numRow('# teachers trained', 'teachersTrained')}
-                        {numRow('# students reached', 'studentsReached')}
-                        {numRow('# community sessions', 'communitySessions')}
-                        {numRow('# safe spaces set up', 'safeSpaces')}
-                        {numRow('# SRGBV referrals', 'srgbvReferrals')}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 11, fontWeight: 500, color: C.textSec, marginBottom: 6 }}>Disaggregation (students reached)</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {numRow('Female', 'disaggFemale')}
-                        {numRow('Male', 'disaggMale')}
-                        {numRow('Age 10–14', 'age1014')}
-                        {numRow('Age 15–19', 'age1519')}
-                        {numRow('With disability', 'withDisability')}
-                        {numRow('Out-of-school', 'outOfSchool')}
-                      </div>
-                    </div>
+                  {infoBanner('Enter totals for this reporting period. Sections apply per activity — use the activity selector above to switch activities.')}
+
+                  {/* Activity selector for Section E */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <span style={{ fontSize: 11, color: C.textSec, fontWeight: 500 }}>Entering for:</span>
+                    {activities.map((act, idx) => (
+                      <button key={act._id} onClick={() => setActiveActivityIdx(idx)} style={{
+                        padding: '4px 10px', fontSize: 10, borderRadius: 4, border: `1px solid ${activeActivityIdx === idx ? C.blue600 : C.border}`,
+                        background: activeActivityIdx === idx ? C.blue600 : C.white,
+                        color: activeActivityIdx === idx ? C.white : C.textSec, cursor: 'pointer',
+                      }}>Activity {idx + 1}{act.activityTitle ? ` — ${act.activityTitle.slice(0, 20)}` : ''}</button>
+                    ))}
                   </div>
+
+                  {activities[activeActivityIdx] && (() => {
+                    const act = activities[activeActivityIdx];
+                    const idx = activeActivityIdx;
+
+                    // Card-style number input (label on top, input on bottom) — wireframe pattern
+                    const numCard = (label, key) => (
+                      <div style={{ border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', background: '#f8fafc' }}>
+                        <div style={{ fontSize: 10, color: C.textSec, fontWeight: 500, marginBottom: 6, lineHeight: 1.3 }}>{label}</div>
+                        <input type="number" min="0" value={act[key]}
+                          onChange={e => setActivityField(idx, key, parseInt(e.target.value) || 0)}
+                          style={{ width: '100%', height: 32, border: `1px solid ${C.border}`, borderRadius: 4, padding: '0 8px', fontSize: 13, textAlign: 'center', boxSizing: 'border-box', color: C.text }} />
+                      </div>
+                    );
+
+                    // Computed total card (read-only, shows sum of two keys)
+                    const totalCard = (label, fKey, mKey) => {
+                      const total = (act[fKey] || 0) + (act[mKey] || 0);
+                      return (
+                        <div style={{ border: `1px solid ${C.blue100}`, borderRadius: 6, padding: '8px 10px', background: C.blueBg }}>
+                          <div style={{ fontSize: 10, color: C.textSec, fontWeight: 500, marginBottom: 6, lineHeight: 1.3 }}>{label}</div>
+                          <div style={{ height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: C.blue600 }}>{total}</div>
+                        </div>
+                      );
+                    };
+
+                    // Row-style number input (label left, input right) for mechanisms / engagement
+                    const numRow = (label, key) => (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', borderRadius: 4, background: '#f8fafc', fontSize: 11, border: `1px solid ${C.borderLight}` }}>
+                        <span style={{ color: C.textSec, flex: 1, paddingRight: 8 }}>{label}</span>
+                        <input type="number" min="0" value={act[key]}
+                          onChange={e => setActivityField(idx, key, parseInt(e.target.value) || 0)}
+                          style={{ width: 64, height: 26, border: `1px solid ${C.border}`, borderRadius: 4, padding: '0 6px', fontSize: 11, textAlign: 'right', flexShrink: 0, color: C.text }} />
+                      </div>
+                    );
+
+                    const subHead = (text) => (
+                      <div style={{ fontSize: 11, fontWeight: 600, color: C.textSec, marginBottom: 8, paddingBottom: 4, borderBottom: `1px solid ${C.border}` }}>{text}</div>
+                    );
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+                        {/* Schools by level — 4-col card grid */}
+                        <div>
+                          {subHead('Schools reached — by level')}
+                          <div style={g4}>
+                            {numCard('Pre-primary', 'schools_pre_primary')}
+                            {numCard('Primary', 'schools_primary')}
+                            {numCard('Junior Secondary (JSS)', 'schools_jss')}
+                            {numCard('Senior Secondary (SSS)', 'schools_sss')}
+                          </div>
+                        </div>
+
+                        {/* School SRGBV mechanisms — 3 rows × 2 columns (half-width) */}
+                        <div>
+                          {subHead('School-level SRGBV prevention mechanisms')}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                            {numRow('# schools with a trained SRGBV focal person', 'schools_with_focal_person')}
+                            {numRow('# schools with SRGBV reporting protocol', 'schools_with_reporting_protocol')}
+                            {numRow('# schools with SRGBV referral pathway', 'schools_with_referral_pathway')}
+                            {numRow('# schools that held a school-wide SRGBV awareness campaign', 'schools_held_schoolwide_campaign')}
+                            {numRow('# schools that held a peer-led SRGBV awareness session', 'schools_held_peer_led_session')}
+                            {numRow('# schools with a designated, student-accessible safe space', 'schools_with_safe_space')}
+                          </div>
+                          {/* Blue KPI info box */}
+                          <div style={{ marginTop: 8, background: C.blueBg, border: `1px solid ${C.blue100}`, borderRadius: 5, padding: '7px 12px', fontSize: 10, color: C.blue900, display: 'flex', alignItems: 'flex-start', gap: 7 }}>
+                            <span style={{ flexShrink: 0, fontSize: 13 }}>ℹ</span>
+                            <span>A school is counted as having a <strong>functional SRGBV mechanism</strong> if it meets ≥ 3 of the 4 criteria (trained focal person, reporting protocol, referral pathway, awareness activities). This KPI is auto-calculated by the system from your inputs.</span>
+                          </div>
+                        </div>
+
+                        {/* Students — 2-col (in-school | out-of-school), each with Total / F / M / age bands */}
+                        <div>
+                          {subHead('Students reached')}
+                          <div style={g2}>
+                            {/* In-school */}
+                            <div>
+                              <div style={{ fontSize: 10, color: C.textMuted, fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>In-school</div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 6 }}>
+                                {totalCard('Total', 'students_inschool_f', 'students_inschool_m')}
+                                {numCard('Female', 'students_inschool_f')}
+                                {numCard('Male', 'students_inschool_m')}
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                {numRow('Age under 10', 'students_inschool_age_under10')}
+                                {numRow('Age 10–14', 'students_inschool_age_10_14')}
+                                {numRow('Age 15–19', 'students_inschool_age_15_19')}
+                              </div>
+                            </div>
+                            {/* Out-of-school */}
+                            <div>
+                              <div style={{ fontSize: 10, color: C.textMuted, fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Out-of-school</div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 6 }}>
+                                {totalCard('Total', 'students_oos_f', 'students_oos_m')}
+                                {numCard('Female', 'students_oos_f')}
+                                {numCard('Male', 'students_oos_m')}
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                {numRow('Age 10–14', 'students_oos_age_10_14')}
+                                {numRow('Age 15–19', 'students_oos_age_15_19')}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Disability & vulnerable — 4-col card grid */}
+                          <div style={{ marginTop: 10 }}>
+                            <div style={{ fontSize: 10, color: C.textMuted, fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Disability &amp; vulnerable groups</div>
+                            <div style={g4}>
+                              {numCard('Students w/ disability — female', 'students_disability_f')}
+                              {numCard('Students w/ disability — male', 'students_disability_m')}
+                              {numCard('Pregnant girls reached', 'pregnant_girls')}
+                              {numCard('Teenage mothers reached', 'teenage_mothers')}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Student engagement — full-width rows */}
+                        <div>
+                          {subHead('Student engagement with SRGBV mechanisms')}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                            {numRow('# students who used school SRGBV reporting mechanism', 'students_used_reporting_mechanism')}
+                            {numRow('# students confident using reporting mechanism', 'students_confident_reporting')}
+                          </div>
+                        </div>
+
+                        {/* Teachers — 3-col Total/F/M + full-width GRP row */}
+                        <div>
+                          {subHead('Teachers / school staff trained')}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 8 }}>
+                            {totalCard('Total trained', 'teachers_f', 'teachers_m')}
+                            {numCard('Female', 'teachers_f')}
+                            {numCard('Male', 'teachers_m')}
+                          </div>
+                          {numRow('# demonstrating non-violent, gender-responsive practices (GRP)', 'teachers_demonstrated_grp')}
+                        </div>
+
+                        {/* Government officials — district then central, each 3-col */}
+                        <div>
+                          {subHead('Government officials trained')}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            <div>
+                              <div style={{ fontSize: 10, color: C.textMuted, fontWeight: 500, marginBottom: 5 }}>District officials (DDs, SQAM, etc.)</div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                                {totalCard('Total', 'district_officials_f', 'district_officials_m')}
+                                {numCard('Female', 'district_officials_f')}
+                                {numCard('Male', 'district_officials_m')}
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: 10, color: C.textMuted, fontWeight: 500, marginBottom: 5 }}>Central officials (MBSSE, TSC, etc.)</div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                                {totalCard('Total', 'central_officials_f', 'central_officials_m')}
+                                {numCard('Female', 'central_officials_f')}
+                                {numCard('Male', 'central_officials_m')}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Community members — 3-col Total/F/M */}
+                        <div>
+                          {subHead('Community members reached')}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 8 }}>
+                            {totalCard('Total', 'community_members_f', 'community_members_m')}
+                            {numCard('Female', 'community_members_f')}
+                            {numCard('Male', 'community_members_m')}
+                          </div>
+                        </div>
+
+                        {/* Other outputs — full-width rows */}
+                        <div>
+                          {subHead('Other outputs')}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                            {numRow('# community sessions conducted', 'community_sessions')}
+                            {numRow('# multi-stakeholder policy dialogue events', 'policy_dialogue_events')}
+                          </div>
+                          <div style={{ marginTop: 8, fontSize: 10, color: C.textMuted, fontStyle: 'italic' }}>
+                            Note: count each session / event only once regardless of number of attendees — attendee counts are captured above under community members.
+                          </div>
+                        </div>
+
+                      </div>
+                    );
+                  })()}
                 </>)}
 
                 {/* F — Outcome Snapshot */}
@@ -525,33 +831,121 @@ export default function ReportingForm() {
                 {/* K — Evidence Uploads */}
                 {section('K', C.textMuted, <>
                   <SecHeader id="K" label="Evidence uploads" />
+
+                  {/* Data protection warning */}
+                  <div style={{ background: C.redBg, border: `1px solid ${C.red100}`, borderRadius: 5, padding: '8px 12px', fontSize: 11, color: C.red900, marginBottom: 14, lineHeight: 1.5 }}>
+                    <strong>Data protection — please read before uploading.</strong> Do not upload any documents or photos containing: names of survivors, victims, or at-risk individuals; case details or incident descriptions; identifiable photos of children; or any personal data about individuals. All uploads must be de-identified.
+                  </div>
+
                   <div style={g2}>
+
+                    {/* ── Photos ── */}
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 500, color: C.textSec, marginBottom: 6 }}>Photos</div>
-                      <div style={{
-                        border: '1.5px dashed #e2e8f0', borderRadius: 6, padding: 18,
-                        textAlign: 'center', fontSize: 11, color: C.textMuted, background: '#f8fafc', cursor: 'pointer',
-                      }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = C.blue600; e.currentTarget.style.background = C.blueBg; e.currentTarget.style.color = C.blue900; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = C.textMuted; }}>
-                        <div style={{ fontSize: 22, marginBottom: 5 }}>📷</div>
-                        Drop photos here or click to browse
-                        <div style={{ fontSize: 10, color: C.textMuted, marginTop: 4 }}>JPG, PNG · max 5MB per file</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: C.textSec, marginBottom: 6 }}>
+                        Photos
+                        {uploadedPhotos.length > 0 && <span style={{ fontWeight: 400, color: C.textMuted, marginLeft: 6 }}>{uploadedPhotos.length} file{uploadedPhotos.length !== 1 ? 's' : ''}</span>}
                       </div>
+
+                      {/* Hidden file input */}
+                      <input ref={photoInputRef} type="file" multiple accept="image/jpeg,image/png,image/gif"
+                        style={{ display: 'none' }}
+                        onChange={e => processPhotoFiles(Array.from(e.target.files))} />
+
+                      {/* Drop zone */}
+                      <div
+                        onClick={() => photoInputRef.current?.click()}
+                        onDragOver={e => { e.preventDefault(); setDragOverPhoto(true); }}
+                        onDragLeave={() => setDragOverPhoto(false)}
+                        onDrop={e => { e.preventDefault(); setDragOverPhoto(false); processPhotoFiles(Array.from(e.dataTransfer.files)); }}
+                        style={{
+                          border: `1.5px dashed ${dragOverPhoto ? C.blue600 : C.border}`,
+                          borderRadius: 6, padding: '18px 12px', textAlign: 'center', fontSize: 11,
+                          color: dragOverPhoto ? C.blue900 : C.textMuted,
+                          background: dragOverPhoto ? C.blueBg : '#f8fafc',
+                          cursor: 'pointer', transition: 'all .15s',
+                        }}
+                      >
+                        <div style={{ fontSize: 24, marginBottom: 5 }}>📷</div>
+                        {dragOverPhoto ? 'Release to upload' : 'Drop photos here or click to browse'}
+                        <div style={{ fontSize: 10, color: C.textMuted, marginTop: 4 }}>JPG, PNG · max 5 MB per file · de-identified only</div>
+                      </div>
+
+                      {/* Uploaded file list */}
+                      {uploadedPhotos.length > 0 && (
+                        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          {uploadedPhotos.map(f => (
+                            <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: f.error ? C.redBg : C.white, border: `1px solid ${f.error ? C.red100 : C.border}`, borderRadius: 5 }}>
+                              {f.preview
+                                ? <img src={f.preview} alt="" style={{ width: 30, height: 30, objectFit: 'cover', borderRadius: 3, flexShrink: 0 }} />
+                                : <span style={{ fontSize: 18, flexShrink: 0 }}>📷</span>
+                              }
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 11, fontWeight: 500, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
+                                {f.error
+                                  ? <div style={{ fontSize: 10, color: C.red700 }}>⚠ {f.error}</div>
+                                  : <div style={{ fontSize: 10, color: C.textMuted }}>{f.sizeLabel}</div>
+                                }
+                              </div>
+                              <span onClick={() => setUploadedPhotos(prev => prev.filter(x => x.id !== f.id))}
+                                style={{ fontSize: 14, color: C.textMuted, cursor: 'pointer', flexShrink: 0, lineHeight: 1, padding: '0 2px' }}>✕</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
+
+                    {/* ── Supporting documents ── */}
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 500, color: C.textSec, marginBottom: 6 }}>Supporting documents</div>
-                      <div style={{
-                        border: '1.5px dashed #e2e8f0', borderRadius: 6, padding: 18,
-                        textAlign: 'center', fontSize: 11, color: C.textMuted, background: '#f8fafc', cursor: 'pointer',
-                      }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = C.blue600; e.currentTarget.style.background = C.blueBg; e.currentTarget.style.color = C.blue900; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = C.textMuted; }}>
-                        <div style={{ fontSize: 22, marginBottom: 5 }}>📄</div>
-                        Drop files here or click to browse
-                        <div style={{ fontSize: 10, color: C.textMuted, marginTop: 4 }}>PDF, Word, Excel · max 10MB per file</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: C.textSec, marginBottom: 6 }}>
+                        Supporting documents
+                        {uploadedDocs.length > 0 && <span style={{ fontWeight: 400, color: C.textMuted, marginLeft: 6 }}>{uploadedDocs.length} file{uploadedDocs.length !== 1 ? 's' : ''}</span>}
                       </div>
+
+                      {/* Hidden file input */}
+                      <input ref={docInputRef} type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx"
+                        style={{ display: 'none' }}
+                        onChange={e => processDocFiles(Array.from(e.target.files))} />
+
+                      {/* Drop zone */}
+                      <div
+                        onClick={() => docInputRef.current?.click()}
+                        onDragOver={e => { e.preventDefault(); setDragOverDoc(true); }}
+                        onDragLeave={() => setDragOverDoc(false)}
+                        onDrop={e => { e.preventDefault(); setDragOverDoc(false); processDocFiles(Array.from(e.dataTransfer.files)); }}
+                        style={{
+                          border: `1.5px dashed ${dragOverDoc ? C.blue600 : C.border}`,
+                          borderRadius: 6, padding: '18px 12px', textAlign: 'center', fontSize: 11,
+                          color: dragOverDoc ? C.blue900 : C.textMuted,
+                          background: dragOverDoc ? C.blueBg : '#f8fafc',
+                          cursor: 'pointer', transition: 'all .15s',
+                        }}
+                      >
+                        <div style={{ fontSize: 24, marginBottom: 5 }}>📄</div>
+                        {dragOverDoc ? 'Release to upload' : 'Drop files here or click to browse'}
+                        <div style={{ fontSize: 10, color: C.textMuted, marginTop: 4 }}>PDF, Word, Excel · max 10 MB per file</div>
+                      </div>
+
+                      {/* Uploaded file list */}
+                      {uploadedDocs.length > 0 && (
+                        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          {uploadedDocs.map(f => (
+                            <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: f.error ? C.redBg : C.white, border: `1px solid ${f.error ? C.red100 : C.border}`, borderRadius: 5 }}>
+                              <span style={{ fontSize: 18, flexShrink: 0 }}>{fileIcon(f.name)}</span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 11, fontWeight: 500, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
+                                {f.error
+                                  ? <div style={{ fontSize: 10, color: C.red700 }}>⚠ {f.error}</div>
+                                  : <div style={{ fontSize: 10, color: C.textMuted }}>{f.sizeLabel}</div>
+                                }
+                              </div>
+                              <span onClick={() => setUploadedDocs(prev => prev.filter(x => x.id !== f.id))}
+                                style={{ fontSize: 14, color: C.textMuted, cursor: 'pointer', flexShrink: 0, lineHeight: 1, padding: '0 2px' }}>✕</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
+
                   </div>
                 </>)}
 

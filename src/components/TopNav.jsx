@@ -1,12 +1,26 @@
 import React from 'react';
 import { C } from '../tokens.js';
 
-export default function TopNav({ activePage, setActivePage }) {
+export default function TopNav({ activePage, setActivePage, user, onLogout }) {
   const nav = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'directory', label: 'Partner Directory' },
     { id: 'form', label: 'Activity Report' },
   ];
+
+  const initials = user?.email
+    ? user.email.slice(0, 2).toUpperCase()
+    : '??';
+
+  const roleLabel = user?.role
+    ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
+    : '';
+
+  const roleStyle = {
+    admin:   { background: C.blueBg,   color: C.blue900,   border: `1px solid ${C.blue100}` },
+    viewer:  { background: C.greenBg,  color: C.green900,  border: `1px solid ${C.green100}` },
+    partner: { background: C.amberBg,  color: C.amber600,  border: `1px solid ${C.amber100}` },
+  }[user?.role] ?? { background: C.borderLight, color: C.textSec, border: `1px solid ${C.border}` };
 
   return (
     <nav style={{
@@ -15,13 +29,13 @@ export default function TopNav({ activePage, setActivePage }) {
       borderBottom: `1px solid ${C.border}`, position: 'sticky', top: 0, zIndex: 100,
       boxShadow: '0 1px 3px rgba(0,0,0,.06)',
     }}>
+      {/* Left — logo + nav */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{
           background: C.blue600, color: C.white, fontSize: 11, fontWeight: 600,
           padding: '4px 10px', borderRadius: 4,
         }}>MBSSE</div>
         <span style={{ fontSize: 13, fontWeight: 500 }}>School Safety Coordination Hub</span>
-        <span style={{ fontSize: 11, color: C.textMuted, marginLeft: 2 }}>— Prototype</span>
         <div style={{ display: 'flex', gap: 4, marginLeft: 16 }}>
           {nav.map(n => (
             <button key={n.id} onClick={() => setActivePage(n.id)} style={{
@@ -33,20 +47,28 @@ export default function TopNav({ activePage, setActivePage }) {
           ))}
         </div>
       </div>
+
+      {/* Right — role badge + avatar + logout */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{
-          fontSize: 11, padding: '3px 9px', borderRadius: 4,
-          background: C.amberBg, color: C.amber600, border: `1px solid ${C.amber100}`, fontWeight: 500,
-        }}>⚠ 3 late submissions</span>
-        <span style={{
-          fontSize: 11, padding: '3px 8px', borderRadius: 4,
-          background: C.blueBg, color: C.blue900, border: `1px solid ${C.blue100}`, fontWeight: 500,
-        }}>Admin</span>
+          fontSize: 11, padding: '3px 8px', borderRadius: 4, fontWeight: 500,
+          ...roleStyle,
+        }}>{roleLabel}</span>
+
         <div style={{
           width: 30, height: 30, borderRadius: '50%', background: C.blue600,
           color: C.white, fontSize: 11, fontWeight: 600,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>AK</div>
+          title: user?.email,
+        }}>{initials}</div>
+
+        {onLogout && (
+          <button onClick={onLogout} style={{
+            fontSize: 11, padding: '4px 10px', borderRadius: 4,
+            border: `1px solid ${C.border}`, background: C.white,
+            color: C.textSec, cursor: 'pointer',
+          }}>Sign out</button>
+        )}
       </div>
     </nav>
   );
