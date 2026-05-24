@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 import os
 
@@ -37,6 +38,11 @@ app.include_router(organisations.router, prefix="/api/v1")
 if settings.storage_backend == "local":
     os.makedirs(settings.local_upload_dir, exist_ok=True)
     app.mount("/uploads", StaticFiles(directory=settings.local_upload_dir), name="uploads")
+
+
+@app.get("/", include_in_schema=False)
+async def root():
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")
