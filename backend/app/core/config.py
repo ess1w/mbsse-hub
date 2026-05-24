@@ -37,6 +37,20 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
 
     @property
+    def async_database_url(self) -> str:
+        """Return the DATABASE_URL with the asyncpg dialect prefix.
+
+        Render (and Heroku) provide plain postgresql:// or postgres:// URLs.
+        SQLAlchemy's async engine requires postgresql+asyncpg://.
+        """
+        url = self.database_url
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        if url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url
+
+    @property
     def origins(self) -> list[str]:
         return [o.strip() for o in self.allowed_origins.split(",")]
 
