@@ -1,5 +1,5 @@
 """
-Creates an admin user in the database.
+Creates (or updates) the admin user in the database.
 Uses asyncpg directly (no SQLAlchemy) to avoid greenlet dependency.
 
 Run from backend/ directory:
@@ -11,8 +11,8 @@ Docker:
 import asyncio
 import os
 import uuid
-import bcrypt
 import asyncpg
+from passlib.context import CryptContext
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -23,9 +23,12 @@ EMAIL    = os.getenv("ADMIN_EMAIL",    "admin@mbsse.gov.sl")
 PASSWORD = os.getenv("ADMIN_PASSWORD", "changeme123")
 FULLNAME = os.getenv("ADMIN_FULLNAME", "MBSSE Administrator")
 
+# Use passlib — same context as app/core/security.py so hashes are compatible
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 def hash_password(plain: str) -> str:
-    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
+    return pwd_context.hash(plain)
 
 
 async def main():
@@ -33,23 +36,23 @@ async def main():
 
     existing = await conn.fetchval("SELECT id FROM users WHERE email = $1", EMAIL)
     if existing:
-        print(f"User {EMAIL} already exists — skipping.")
-        await conn.close()
-        return
+        # Always sync the password hash on restart so env-var changes take effect
+        await conn.execute(
+            "UPDATE users SET password_hash = $1 WHERE email = $2",
+            hash_password(PASSWORD), EMAIL,
+        )
+        print(f"✓ Admin user {EMAIL} already exists — password hash updated.")
+    else:
+        user_id = str(uuid.uuid4())
+        await conn.execute(
+            """INSERT INTO users (id, email, password_hash, full_name, role, is_active, email_verified)
+               VALUES ($1, $2, $3, $4, 'admin', true, true)""",
+            user_id, EMAIL, hash_password(PASSWORD), FULLNAME,
+        )
+        print(f"✓ Admin user created — {EMAIL}")
 
-    user_id = str(uuid.uuid4())
-    await conn.execute(
-        """INSERT INTO users (id, email, password_hash, full_name, role, is_active, email_verified)
-           VALUES ($1, $2, $3, $4, 'admin', true, true)""",
-        user_id, EMAIL, hash_password(PASSWORD), FULLNAME,
-    )
     await conn.close()
-
-    print("✓ Admin user created")
-    print(f"  Email:    {EMAIL}")
     print(f"  Password: {PASSWORD}")
-    print(f"  ID:       {user_id}")
-    print()
     print("  Change the password after first login!")
 
 
