@@ -16,11 +16,11 @@ services:
         source: /*
         destination: /index.html
     envVars:
-      # Set this to the URL of the deployed API service below (after first deploy)
+      # Set this to the URL of the deployed API service (update after first deploy)
       - key: VITE_API_URL
         value: https://mbsse-hub-api.onrender.com/api/v1
 
-  # ── Backend (FastAPI + PostgreSQL) ──────────────────────────────────────────
+  # ── Backend (FastAPI) ────────────────────────────────────────────────────────
   - type: web
     name: mbsse-hub-api
     runtime: python
@@ -29,27 +29,20 @@ services:
     startCommand: sh start.sh
     pullRequestPreviewsEnabled: false
     envVars:
-      # Injected automatically from the database below
+      # Paste the Internal Database URL from your existing Render Postgres instance
+      # Dashboard → your database → Info tab → "Internal Database URL"
       - key: DATABASE_URL
-        fromDatabase:
-          name: mbsse-hub-db
-          property: connectionString
+        sync: false
       # Auto-generated 256-bit secret for JWT signing
       - key: SECRET_KEY
         generateValue: true
       - key: ENVIRONMENT
         value: production
-      # Allow all origins for the prototype; tighten to the frontend URL in production
+      # Allow all origins for the prototype; restrict to frontend URL in production
       - key: ALLOWED_ORIGINS
         value: "*"
-      # Admin account created on first deploy (change password after login)
+      # Admin account seeded on first deploy
       - key: ADMIN_EMAIL
         value: admin@mbsse.gov.sl
       - key: ADMIN_PASSWORD
         generateValue: true
-
-  # ── PostgreSQL database ──────────────────────────────────────────────────────
-databases:
-  - name: mbsse-hub-db
-    databaseName: mbsse_hub
-    plan: free
