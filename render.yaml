@@ -1,5 +1,5 @@
 services:
-  # ── Frontend (Vite / React) ──────────────────────────────────────────────
+  # ── Frontend (Vite / React static site) ─────────────────────────────────────
   - type: web
     name: mbsse-hub-frontend
     runtime: static
@@ -15,26 +15,40 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+    envVars:
+      # Set this to the URL of the deployed API service below (after first deploy)
+      - key: VITE_API_URL
+        value: https://mbsse-hub-api.onrender.com/api/v1
 
-  # ── Backend (FastAPI) ────────────────────────────────────────────────────
+  # ── Backend (FastAPI + PostgreSQL) ──────────────────────────────────────────
   - type: web
     name: mbsse-hub-api
     runtime: python
     rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install -r requirements-prod.txt
+    startCommand: sh start.sh
     pullRequestPreviewsEnabled: false
     envVars:
+      # Injected automatically from the database below
       - key: DATABASE_URL
         fromDatabase:
           name: mbsse-hub-db
           property: connectionString
+      # Auto-generated 256-bit secret for JWT signing
       - key: SECRET_KEY
         generateValue: true
       - key: ENVIRONMENT
         value: production
+      # Allow all origins for the prototype; tighten to the frontend URL in production
+      - key: ALLOWED_ORIGINS
+        value: "*"
+      # Admin account created on first deploy (change password after login)
+      - key: ADMIN_EMAIL
+        value: admin@mbsse.gov.sl
+      - key: ADMIN_PASSWORD
+        generateValue: true
 
-  # ── PostgreSQL database ──────────────────────────────────────────────────
+  # ── PostgreSQL database ──────────────────────────────────────────────────────
 databases:
   - name: mbsse-hub-db
     databaseName: mbsse_hub

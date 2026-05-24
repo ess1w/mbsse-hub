@@ -1,0 +1,25 @@
+# Production dependencies only — excludes Celery, Redis, boto3, SendGrid
+# (those are available in requirements.txt for local dev / future use)
+
+# Web framework
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+
+# Database
+sqlalchemy>=2.0.36
+asyncpg>=0.29.0
+alembic>=1.13.1
+
+# Auth
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==3.2.2
+
+# Validation & settings
+pydantic==2.7.1
+pydantic-settings==2.2.1
+python-multipart==0.0.9
+email-validator==2.1.1
+
+# Utilities
+python-dotenv==1.0.1

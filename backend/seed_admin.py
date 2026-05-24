@@ -19,9 +19,9 @@ DATABASE_URL = os.getenv(
     "postgresql://mbsse:mbsse_secret@localhost:5432/mbsse_hub"
 ).replace("postgresql+asyncpg://", "postgresql://")
 
-EMAIL    = "admin@mbsse.gov.sl"
-PASSWORD = "changeme123"
-FULLNAME = "MBSSE Administrator"
+EMAIL    = os.getenv("ADMIN_EMAIL",    "admin@mbsse.gov.sl")
+PASSWORD = os.getenv("ADMIN_PASSWORD", "changeme123")
+FULLNAME = os.getenv("ADMIN_FULLNAME", "MBSSE Administrator")
 
 
 def hash_password(plain: str) -> str:
