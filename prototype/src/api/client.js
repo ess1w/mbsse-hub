@@ -179,6 +179,18 @@ export const usersApi = {
   remove:       (id)       => apiFetch(`/users/${id}`,            { method: 'DELETE' }),
 };
 
+// ── Reminders API calls (admin) ───────────────────────────────────────────────
+
+export const remindersApi = {
+  /** Trigger an immediate bulk reminder send. Returns { sent, message }. */
+  sendBulk: () => apiFetch('/reminders/send-bulk', { method: 'POST' }),
+  /** List the reminder log. */
+  list: (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return apiFetch(`/reminders${qs ? '?' + qs : ''}`);
+  },
+};
+
 // ── Submissions API calls ────────────────────────────────────────────────────
 
 export const submissionsApi = {

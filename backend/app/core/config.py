@@ -28,13 +28,14 @@ class Settings(BaseSettings):
     aws_region: str = "eu-west-1"
     s3_presigned_url_expiry: int = 3600
 
-    # Email
-    sendgrid_api_key: str = ""
+    # Email (SMTP)
+    smtp_host: str = ""          # leave blank to use stdout in dev
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_use_tls: bool = True
     email_from: str = "noreply@mbsse.gov.sl"
     email_from_name: str = "MBSSE Coordination Hub"
-
-    # Celery
-    redis_url: str = "redis://localhost:6379/0"
 
     @property
     def async_database_url(self) -> str:

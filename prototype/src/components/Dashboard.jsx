@@ -1,5 +1,6 @@
 import React from 'react';
 import { C, pill, statusVariant } from '../tokens.js';
+import { remindersApi, DEMO_MODE } from '../api/client.js';
 
 const KPI = ({ label, val, sub, subColor, alert }) => (
   <div style={{ background: C.white, borderRadius: 8, padding: '14px 16px', border: `1px solid ${C.border}`, borderLeft: alert ? `3px solid ${C.red500}` : `1px solid ${C.border}` }}>
@@ -70,6 +71,24 @@ const DRAFTS = [
 
 export default function Dashboard({ setActivePage }) {
   const [activeTab, setActiveTab] = React.useState('not-submitted');
+  const [reminderState, setReminderState] = React.useState({ loading: false, result: null });
+
+  async function handleSendReminders() {
+    if (reminderState.loading) return;
+    setReminderState({ loading: true, result: null });
+    try {
+      if (DEMO_MODE) {
+        // Simulate a response in demo mode
+        await new Promise(r => setTimeout(r, 800));
+        setReminderState({ loading: false, result: { sent: 15, message: '15 reminder(s) sent. (demo)' } });
+      } else {
+        const result = await remindersApi.sendBulk();
+        setReminderState({ loading: false, result });
+      }
+    } catch (err) {
+      setReminderState({ loading: false, result: { sent: 0, message: `Error: ${err.message}` } });
+    }
+  }
 
   return (
     <main style={{ flex: 1, padding: '18px 20px', overflow: 'auto' }}>
@@ -332,7 +351,13 @@ export default function Dashboard({ setActivePage }) {
             </div>
           </div>
           <div style={{ fontSize: 10, color: C.textMuted, paddingTop: 10, borderTop: `1px solid ${C.borderLight}`, marginTop: 10 }}>
-            Deadline: 30 June 2026 · <span style={{ color: C.blue600, cursor: 'pointer' }}>Send reminders to 18 →</span>
+            Deadline: 30 June 2026 ·{' '}
+            <span
+              onClick={handleSendReminders}
+              style={{ color: reminderState.loading ? C.textMuted : C.blue600, cursor: reminderState.loading ? 'default' : 'pointer' }}
+            >
+              {reminderState.loading ? 'Sending…' : reminderState.result ? reminderState.result.message : 'Send reminders to 18 →'}
+            </span>
           </div>
         </Panel>
       </div>
@@ -385,8 +410,16 @@ export default function Dashboard({ setActivePage }) {
               <span onClick={() => setActivePage('directory')} style={{ fontSize: 11, color: C.blue600, cursor: 'pointer', fontWeight: 500 }}>+ 4 more not submitted — view in directory →</span>
             </div>
             <div style={{ padding: '8px 10px', background: '#f8fafc', borderRadius: 6, border: `1px solid ${C.borderLight}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 11, color: C.textSec }}>Send bulk reminder to all 7 non-submitting partners</span>
-              <button style={{ padding: '5px 12px', background: C.red500, color: C.white, border: 'none', borderRadius: 5, fontSize: 11, fontWeight: 500, cursor: 'pointer' }}>Send all →</button>
+              <span style={{ fontSize: 11, color: C.textSec }}>
+                {reminderState.result ? reminderState.result.message : 'Send bulk reminder to all 7 non-submitting partners'}
+              </span>
+              <button
+                onClick={handleSendReminders}
+                disabled={reminderState.loading}
+                style={{ padding: '5px 12px', background: reminderState.loading ? C.textMuted : C.red500, color: C.white, border: 'none', borderRadius: 5, fontSize: 11, fontWeight: 500, cursor: reminderState.loading ? 'default' : 'pointer' }}
+              >
+                {reminderState.loading ? 'Sending…' : 'Send all →'}
+              </button>
             </div>
           </div>
         )}

@@ -21,5 +21,8 @@ pydantic-settings>=2.2,<3
 python-multipart>=0.0.9
 email-validator>=2.1
 
+# Scheduler (in-process async, no Redis required)
+apscheduler>=3.10,<4
+
 # Utilities
 python-dotenv>=1.0
