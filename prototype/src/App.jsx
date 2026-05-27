@@ -50,7 +50,7 @@ export default function App() {
         {showSidebar && <Sidebar activePage={activePage} setActivePage={setActivePage} />}
         {activePage === 'dashboard'  && <Dashboard setActivePage={setActivePage} user={user} />}
         {activePage === 'directory'  && <PartnerDirectory user={user} />}
-        {activePage === 'form'       && <ReportingForm user={user} />}
+        {activePage === 'form'       && <ReportingForm user={user} setActivePage={setActivePage} />}
         {activePage === 'users'      && <UserManagement user={user} />}
       </div>
     </div>

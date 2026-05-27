@@ -12,6 +12,9 @@ python seed_admin.py
 echo "==> Seeding partner organisations..."
 python seed_organisations.py
 
+echo "==> Seeding demo users (partner + viewer)..."
+python seed_users.py
+
 echo "==> Starting API server on port ${PORT:-8000}..."
 exec uvicorn app.main:app \
     --host 0.0.0.0 \

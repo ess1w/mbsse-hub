@@ -10,7 +10,7 @@ const PAGE_SECTIONS = {
 
 const COMPLETED_INIT = { A: true, B: true };
 
-export default function ReportingForm() {
+export default function ReportingForm({ setActivePage }) {
   const [currentPage, setCurrentPage] = useState(2);
   const [completedPages, setCompletedPages] = useState([1]);
   const [completedSections, setCompletedSections] = useState(COMPLETED_INIT);
@@ -176,6 +176,30 @@ export default function ReportingForm() {
   const handleSubmit = () => {
     setSubmitted(true);
     setCompletedPages([1, 2, 3]);
+  };
+
+  const handleCancel = () => {
+    // Reset every piece of form state back to its initial value
+    setCurrentPage(1);
+    setCompletedPages([1]);
+    setCompletedSections(COMPLETED_INIT);
+    setActivities([newActivity()]);
+    setActiveActivityIdx(0);
+    setSubmitted(false);
+    setUploadedPhotos([]);
+    setUploadedDocs([]);
+    setAutosaveLabel('Auto-saved 2 min ago');
+    setForm({
+      keyResults: '', observedChanges: '', earlyOutcomes: '',
+      expenditure: '', currency: 'USD', budgetStatus: '',
+      govEngaged: 'No', govCounterpart: '', coordinationMeetings: 0, keyPartners: '',
+      challenges: '', risks: '', mitigations: '',
+      safeguardingCases: 'No', numCases: 0, referralPathway: '', actionTaken: '',
+      plannedActivities: '', supportNeeded: '',
+      district: 'Bo', chiefdom: 'Valunia', community: 'Gondama',
+      school: 'Gondama Secondary School', emisCode: '10042',
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const setField = (key, val) => setForm(f => ({ ...f, [key]: val }));
@@ -987,6 +1011,7 @@ export default function ReportingForm() {
                 <button onClick={() => goPage(currentPage - 1)} style={{ padding: '8px 16px', background: C.white, color: C.textSec, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>← Previous page</button>
               )}
               <button onClick={saveDraft} style={{ padding: '8px 12px', background: 'transparent', color: C.textMuted, border: 'none', fontSize: 12, cursor: 'pointer' }}>Save draft</button>
+              <button onClick={handleCancel} style={{ padding: '8px 14px', background: 'transparent', color: C.red700, border: `1px solid ${C.red100}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>✕ Cancel</button>
             </div>
             <div style={{ fontSize: 11, color: C.textMuted, textAlign: 'center' }}>
               Page {currentPage} of 3 · {completedCount} of {totalSections} sections complete
