@@ -509,7 +509,7 @@ export default function ReportingForm({ setActivePage }) {
                         </div>
                         {/* Section D fields inline with each activity */}
                         <div style={{ borderTop: `1px dashed ${C.border}`, paddingTop: 10 }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: C.textSec, marginBottom: 8 }}>D — Activity implementation details</div>
+                          <SecHeader id="D" label="Activity implementation details" required />
                           <div style={g2}>
                             {fl('Activity title *', (
                               <input value={act.activityTitle} onChange={e => setActivityField(idx, 'activityTitle', e.target.value)}

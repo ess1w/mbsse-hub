@@ -47,7 +47,7 @@ export default function App() {
         onLogout={handleLogout}
       />
       <div style={{ display: 'flex', minHeight: 'calc(100vh - 48px)' }}>
-        {showSidebar && <Sidebar activePage={activePage} setActivePage={setActivePage} />}
+        {showSidebar && <Sidebar activePage={activePage} setActivePage={setActivePage} user={user} />}
         {activePage === 'dashboard'  && <Dashboard setActivePage={setActivePage} user={user} />}
         {activePage === 'directory'  && <PartnerDirectory user={user} />}
         {activePage === 'form'       && <ReportingForm user={user} setActivePage={setActivePage} />}

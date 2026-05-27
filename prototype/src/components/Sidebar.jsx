@@ -15,7 +15,8 @@ const PAGE_MAP = {
   'User management': 'users',
 };
 
-export default function Sidebar({ activePage, setActivePage }) {
+export default function Sidebar({ activePage, setActivePage, user }) {
+  const isAdmin = user?.role === 'admin';
   return (
     <aside style={{
       width: 178, background: C.white, borderRight: `1px solid ${C.border}`,
@@ -28,7 +29,7 @@ export default function Sidebar({ activePage, setActivePage }) {
             fontSize: 10, fontWeight: 600, color: C.textMuted, textTransform: 'uppercase',
             letterSpacing: '.08em', padding: '10px 14px 5px',
           }}>{section}</div>
-          {items.map(item => {
+          {items.filter(item => item !== 'User management' || isAdmin).map(item => {
             const pageId = PAGE_MAP[item];
             const isActive = pageId && activePage === pageId;
             return (
