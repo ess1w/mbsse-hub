@@ -2,10 +2,12 @@ import React from 'react';
 import { C } from '../tokens.js';
 
 export default function TopNav({ activePage, setActivePage, user, onLogout }) {
+  const isViewer = user?.role === 'viewer';
+
   const nav = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'directory', label: 'Partner Directory' },
-    { id: 'form', label: 'Activity Report' },
+    ...(!isViewer ? [{ id: 'form', label: 'Reporting Form' }] : []),
   ];
 
   const initials = user?.email
