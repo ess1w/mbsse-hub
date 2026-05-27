@@ -11,12 +11,13 @@ const PAGE_MAP = {
   'Dashboard': 'dashboard',
   'Partner directory': 'directory',
   'Reporting form': 'form',
-  'Activity reports': 'form',
+  'Activity reports': 'reports',
   'User management': 'users',
 };
 
 export default function Sidebar({ activePage, setActivePage, user }) {
-  const isAdmin = user?.role === 'admin';
+  const isAdmin  = user?.role === 'admin';
+  const isViewer = user?.role === 'viewer';
   return (
     <aside style={{
       width: 178, background: C.white, borderRight: `1px solid ${C.border}`,
@@ -29,7 +30,11 @@ export default function Sidebar({ activePage, setActivePage, user }) {
             fontSize: 10, fontWeight: 600, color: C.textMuted, textTransform: 'uppercase',
             letterSpacing: '.08em', padding: '10px 14px 5px',
           }}>{section}</div>
-          {items.filter(item => item !== 'User management' || isAdmin).map(item => {
+          {items.filter(item => {
+            if (item === 'User management' && !isAdmin)  return false;
+            if (item === 'Reporting form'  && isViewer)  return false;
+            return true;
+          }).map(item => {
             const pageId = PAGE_MAP[item];
             const isActive = pageId && activePage === pageId;
             return (
