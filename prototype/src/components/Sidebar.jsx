@@ -3,7 +3,7 @@ import { C } from '../tokens.js';
 
 const NAV = [
   { section: 'Main', items: ['Dashboard', 'Coverage map', 'Partner directory', 'Reporting form', 'Submissions'] },
-  { section: 'Reports', items: ['Activity reports', 'Export data'] },
+  { section: 'Reports', items: ['Reporting Form', 'Export data'] },
   { section: 'Admin', items: ['User management', 'Form settings', 'System settings'] },
 ];
 
@@ -11,7 +11,7 @@ const PAGE_MAP = {
   'Dashboard': 'dashboard',
   'Partner directory': 'directory',
   'Reporting form': 'form',
-  'Activity reports': 'reports',
+  'Reporting Form': 'reports',
   'User management': 'users',
 };
 
@@ -32,7 +32,7 @@ export default function Sidebar({ activePage, setActivePage, user }) {
           }}>{section}</div>
           {items.filter(item => {
             if (item === 'User management' && !isAdmin)  return false;
-            if (item === 'Reporting form'  && isViewer)  return false;
+            if ((item === 'Reporting form' || item === 'Reporting Form') && isViewer) return false;
             return true;
           }).map(item => {
             const pageId = PAGE_MAP[item];
