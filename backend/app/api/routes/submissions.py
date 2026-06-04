@@ -11,18 +11,25 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, require_admin, require_any
 from app.db.session import get_db
-from app.models.submission import Submission
+from app.models.submission import Submission, Activity
 from app.models.uploaded_file import UploadedFile
 from app.models.user import User
+from app.models.organisation import Organisation
+from app.models.project import Project
+from app.models.reporting_period import ReportingPeriod
 from app.schemas.submission import (
+    ActivitySummary,
+    LocationSummary,
     SubmissionAdminPatch,
     SubmissionDetail,
     SubmissionDraft,
     SubmissionOut,
+    SubmissionReportIn,
     SubmissionSubmit,
 )
 from app.services.file_storage import store_file
@@ -33,7 +40,7 @@ router = APIRouter(prefix="/submissions", tags=["submissions"])
 
 def _check_partner_owns(user: User, submission: Submission) -> None:
     """Partners may only access their own organisation's submissions."""
-    if user.role == "partner" and submission.organisation_id != user.organisation_id:
+    if user.role == "partner" and submission.org_id != user.organisation_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
 
@@ -42,6 +49,31 @@ async def _get_or_404(submission_id: UUID, db: AsyncSession) -> Submission:
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found")
     return sub
+
+
+async def _enriched_out(submission_id: UUID, db: AsyncSession) -> SubmissionOut:
+    """Re-load a submission with relationships and build the enriched response.
+
+    A full SELECT (rather than a partial refresh) ensures every scalar column
+    is freshly loaded, avoiding lazy-load/MissingGreenlet errors during
+    Pydantic serialization.
+    """
+    s = (
+        await db.scalars(
+            select(Submission)
+            .options(
+                joinedload(Submission.organisation),
+                joinedload(Submission.reporting_period),
+                selectinload(Submission.activities),
+            )
+            .where(Submission.id == submission_id)
+        )
+    ).unique().first()
+    obj = SubmissionOut.model_validate(s)
+    obj.focus_areas  = sorted({fa for a in s.activities for fa in (a.focus_areas or [])})
+    obj.org_name     = s.organisation.org_name if s.organisation else None
+    obj.period_label = s.reporting_period.label if s.reporting_period else None
+    return obj
 
 
 # ── List ─────────────────────────────────────────────────────────────────────
@@ -54,13 +86,20 @@ async def list_submissions(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_any),
 ):
-    q = select(Submission)
+    q = (
+        select(Submission)
+        .options(
+            joinedload(Submission.organisation),
+            joinedload(Submission.reporting_period),
+            selectinload(Submission.activities),
+        )
+    )
 
     # Partners only see their own org
     if user.role == "partner":
-        q = q.where(Submission.organisation_id == user.organisation_id)
+        q = q.where(Submission.org_id == user.organisation_id)
     elif org_id:
-        q = q.where(Submission.organisation_id == org_id)
+        q = q.where(Submission.org_id == org_id)
 
     if period_id:
         q = q.where(Submission.reporting_period_id == period_id)
@@ -68,16 +107,88 @@ async def list_submissions(
         q = q.where(Submission.status == status_filter)
 
     result = await db.scalars(q.order_by(Submission.updated_at.desc()))
-    subs = result.all()
+    subs = result.unique().all()
 
-    # Attach focus_areas from junction table
+    # Build enriched response: org name, period label, focus areas (from activities)
     out = []
     for s in subs:
-        await db.refresh(s, ["focus_areas"])
+        focus = sorted({fa for a in s.activities for fa in (a.focus_areas or [])})
         obj = SubmissionOut.model_validate(s)
-        obj.focus_areas = [fa.focus_area for fa in s.focus_areas]
+        obj.focus_areas  = focus
+        obj.org_name     = s.organisation.org_name if s.organisation else None
+        obj.period_label = s.reporting_period.label if s.reporting_period else None
         out.append(obj)
     return out
+
+
+# ── Submit report (consolidated, submission-level) ────────────────────────────
+
+@router.post("/submit-report", response_model=SubmissionOut, status_code=201)
+async def submit_report(
+    body: SubmissionReportIn,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_any),
+):
+    """Persist a submission-level report from the Reporting Form.
+
+    Resolves the active reporting period and the org's project server-side,
+    then upserts a submission for (org, period) and marks it submitted.
+    """
+    if user.role == "viewer":
+        raise HTTPException(status_code=403, detail="Viewers cannot submit reports")
+
+    # ── Resolve organisation ──────────────────────────────────────────────────
+    # Partner → own org; admin → optional body.org_id; else fall back to first
+    # org so the prototype works even before every user is linked to one.
+    org_id = user.organisation_id or body.org_id
+    if not org_id:
+        org_id = await db.scalar(select(Organisation.org_id).limit(1))
+    if not org_id:
+        raise HTTPException(status_code=400, detail="No organisation available to attribute this report to")
+
+    # ── Resolve active reporting period ───────────────────────────────────────
+    period_id = await db.scalar(
+        select(ReportingPeriod.id).where(ReportingPeriod.is_active.is_(True)).limit(1)
+    )
+    if not period_id:
+        raise HTTPException(status_code=400, detail="No active reporting period configured")
+
+    # ── Resolve or create a project for the org ───────────────────────────────
+    project_id = await db.scalar(select(Project.project_id).where(Project.org_id == org_id).limit(1))
+    if not project_id:
+        org_name = await db.scalar(select(Organisation.org_name).where(Organisation.org_id == org_id))
+        proj = Project(org_id=org_id, project_title=f"SRGBV Programme — {org_name}", project_status="Active")
+        db.add(proj)
+        await db.flush()
+        project_id = proj.project_id
+
+    # ── Upsert submission for (org, period) ───────────────────────────────────
+    data = body.model_dump(exclude={"org_id"}, exclude_unset=True)
+    sub = await db.scalar(
+        select(Submission).where(
+            Submission.org_id == org_id,
+            Submission.reporting_period_id == period_id,
+        )
+    )
+    if sub:
+        for k, v in data.items():
+            setattr(sub, k, v)
+    else:
+        sub = Submission(
+            org_id=org_id,
+            project_id=project_id,
+            reporting_period_id=period_id,
+            **data,
+        )
+        db.add(sub)
+
+    sub.status = "submitted"
+    sub.submitted_by = user.id
+    sub.submitted_at = datetime.now(timezone.utc)
+    await db.flush()
+
+    await log_action(db, user, "submission.submit_report", "submission", sub.id)
+    return await _enriched_out(sub.id, db)
 
 
 # ── Create (draft) ────────────────────────────────────────────────────────────
@@ -145,11 +256,45 @@ async def get_submission(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(require_any),
 ):
-    sub = await _get_or_404(submission_id, db)
-    _check_partner_owns(user, sub)
-    await db.refresh(sub, ["focus_areas"])
-    out = SubmissionDetail.model_validate(sub)
-    out.focus_areas = [fa.focus_area for fa in sub.focus_areas]
+    s = (
+        await db.scalars(
+            select(Submission)
+            .options(
+                joinedload(Submission.organisation),
+                joinedload(Submission.reporting_period),
+                selectinload(Submission.activities).selectinload(Activity.output_indicators),
+                selectinload(Submission.locations),
+            )
+            .where(Submission.id == submission_id)
+        )
+    ).unique().first()
+    if not s:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    _check_partner_owns(user, s)
+
+    out = SubmissionDetail.model_validate(s)
+    out.org_name     = s.organisation.org_name if s.organisation else None
+    out.period_label = s.reporting_period.label if s.reporting_period else None
+    out.focus_areas  = sorted({fa for a in s.activities for fa in (a.focus_areas or [])})
+
+    out.activities = [
+        ActivitySummary(
+            activity_title=a.activity_title,
+            activity_type=a.activity_type,
+            implementation_status=a.implementation_status,
+            focus_areas=a.focus_areas or [],
+            objectives=a.objectives or [],
+            students_f=(oi.students_inschool_f if (oi := a.output_indicators) else 0),
+            students_m=(oi.students_inschool_m if oi else 0),
+            teachers_f=(oi.teachers_f if oi else 0),
+            teachers_m=(oi.teachers_m if oi else 0),
+            community_f=(oi.community_members_f if oi else 0),
+            community_m=(oi.community_members_m if oi else 0),
+            schools_total=((oi.schools_primary + oi.schools_jss + oi.schools_sss) if oi else 0),
+        )
+        for a in s.activities
+    ]
+    out.locations = [LocationSummary.model_validate(loc) for loc in s.locations]
     return out
 
 
@@ -255,10 +400,8 @@ async def admin_patch(
 
     await log_action(db, user, "submission.admin_patch", "submission", sub.id,
                      diff=body.model_dump(exclude_none=True))
-    await db.refresh(sub, ["focus_areas"])
-    out = SubmissionOut.model_validate(sub)
-    out.focus_areas = [fa.focus_area for fa in sub.focus_areas]
-    return out
+    await db.flush()
+    return await _enriched_out(sub.id, db)
 
 
 # ── File upload ───────────────────────────────────────────────────────────────

@@ -19,6 +19,10 @@ services:
       # Set this to the URL of the deployed API service (update after first deploy)
       - key: VITE_API_URL
         value: https://mbsse-hub-api.onrender.com/api/v1
+      # Optional: public Metabase dashboard URL for the Analytics page.
+      # Leave unset to show a placeholder instead of a broken localhost iframe.
+      # - key: VITE_METABASE_URL
+      #   value: https://your-metabase-host/public/dashboard/<id>
 
   # ── Backend (FastAPI) ────────────────────────────────────────────────────────
   - type: web

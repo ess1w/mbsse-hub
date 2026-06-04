@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { FORM_OBJECTIVES, FOCUS_AREAS, ACTIVITY_TYPES, IMPLEMENTATION_STATUSES, GOV_COUNTERPARTS, REFERRAL_PATHWAYS, BUDGET_STATUSES, DISTRICTS, SECTIONS, TACTICS, INTERVENTION_LEVELS } from '../../data/formData.js';
 import { C } from '../../tokens.js';
+import { submissionsApi, usesDemoData } from '../../api/client.js';
 
 const PAGE_SECTIONS = {
   1: ['A', 'B', 'C', 'D'],
@@ -96,6 +97,8 @@ export default function ReportingForm({ setActivePage }) {
   };
   const [autosaveLabel, setAutosaveLabel] = useState('Auto-saved 2 min ago');
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   // File upload state (Section K)
   const [uploadedPhotos, setUploadedPhotos] = useState([]);
@@ -173,9 +176,49 @@ export default function ReportingForm({ setActivePage }) {
     setTimeout(() => setAutosaveLabel('Auto-saved 2 min ago'), 2000);
   };
 
-  const handleSubmit = () => {
-    setSubmitted(true);
-    setCompletedPages([1, 2, 3]);
+  const handleSubmit = async () => {
+    setSubmitError(null);
+
+    // In demo mode (no backend / demo token) just confirm locally.
+    if (usesDemoData()) {
+      setSubmitted(true);
+      setCompletedPages([1, 2, 3]);
+      return;
+    }
+
+    // Map form state → submission-level API payload
+    const payload = {
+      key_results:           form.keyResults || null,
+      observed_changes:      form.observedChanges || null,
+      early_outcomes:        form.earlyOutcomes || null,
+      expenditure:           form.expenditure ? parseFloat(form.expenditure) : null,
+      expenditure_currency:  form.currency || 'USD',
+      budget_util:           form.budgetStatus || null,
+      gov_engaged:           form.govEngaged === 'Yes',
+      gov_engaged_list:      form.govCounterpart || null,
+      coordination_meetings: Number(form.coordinationMeetings) || 0,
+      key_partners:          form.keyPartners || null,
+      challenges:            form.challenges || null,
+      risks:                 form.risks || null,
+      mitigations:           form.mitigations || null,
+      safeguarding_cases:    form.safeguardingCases === 'Yes',
+      cases_reported:        Number(form.numCases) || 0,
+      referral_pathway:      form.referralPathway || null,
+      safeguarding_action:   form.actionTaken || null,
+      planned_activities:    form.plannedActivities || null,
+      support_needed:        form.supportNeeded || null,
+    };
+
+    setSubmitting(true);
+    try {
+      await submissionsApi.submitReport(payload);
+      setSubmitted(true);
+      setCompletedPages([1, 2, 3]);
+    } catch (e) {
+      setSubmitError(e.message || 'Submission failed');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleCancel = () => {
@@ -1015,13 +1058,16 @@ export default function ReportingForm({ setActivePage }) {
             </div>
             <div style={{ fontSize: 11, color: C.textMuted, textAlign: 'center' }}>
               Page {currentPage} of 3 · {completedCount} of {totalSections} sections complete
+              {submitError && (
+                <div style={{ color: C.red700, marginTop: 3 }}>⚠ {submitError}</div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               {currentPage < 3 && (
                 <button onClick={nextPage} style={{ padding: '8px 20px', background: C.blue600, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>Next page →</button>
               )}
               {currentPage === 3 && !submitted && (
-                <button onClick={handleSubmit} style={{ padding: '8px 20px', background: C.green700, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>Submit report ✓</button>
+                <button onClick={handleSubmit} disabled={submitting} style={{ padding: '8px 20px', background: submitting ? C.textMuted : C.green700, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: submitting ? 'not-allowed' : 'pointer' }}>{submitting ? 'Submitting…' : 'Submit report ✓'}</button>
               )}
               {submitted && (
                 <span style={{ padding: '8px 20px', background: C.greenBg, color: C.green700, border: `1px solid ${C.green100}`, borderRadius: 6, fontSize: 12, fontWeight: 500 }}>✓ Submitted!</span>

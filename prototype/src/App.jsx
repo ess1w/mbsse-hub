@@ -6,6 +6,9 @@ import PartnerDirectory from './components/directory/PartnerDirectory.jsx';
 import ReportingForm from './components/form/ReportingForm.jsx';
 import UserManagement from './components/admin/UserManagement.jsx';
 import ActivityReports from './components/reports/ActivityReports.jsx';
+import ExportData from './components/reports/ExportData.jsx';
+import Submissions from './components/submissions/Submissions.jsx';
+import AnalyticsDashboard from './components/analytics/AnalyticsDashboard.jsx';
 import Login from './components/Login.jsx';
 import { C } from './tokens.js';
 import { auth, authApi } from './api/client.js';
@@ -53,7 +56,10 @@ export default function App() {
         {activePage === 'directory'  && <PartnerDirectory user={user} />}
         {activePage === 'form'       && <ReportingForm user={user} setActivePage={setActivePage} />}
         {activePage === 'users'      && <UserManagement user={user} />}
-        {activePage === 'reports'    && <ActivityReports user={user} />}
+        {activePage === 'reports'     && <ActivityReports user={user} />}
+        {activePage === 'submissions' && <Submissions user={user} />}
+        {activePage === 'export'      && <ExportData />}
+        {activePage === 'analytics'   && <AnalyticsDashboard />}
       </div>
     </div>
   );

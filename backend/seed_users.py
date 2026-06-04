@@ -46,29 +46,31 @@ USERS = [
 ]
 
 
-async def upsert_user(conn, user: dict) -> None:
+async def upsert_user(conn, user: dict, org_id=None) -> None:
     email    = user["email"]
     password = user["password"]
     role     = user["role"]
+    # Partners are linked to an organisation so they can submit reports.
+    org = org_id if role == "partner" else None
 
     existing = await conn.fetchval(
         "SELECT id FROM users WHERE email = $1", email
     )
     if existing:
         await conn.execute(
-            "UPDATE users SET password_hash = $1, role = $2 WHERE email = $3",
-            hash_password(password), role, email,
+            "UPDATE users SET password_hash = $1, role = $2, organisation_id = $3 WHERE email = $4",
+            hash_password(password), role, org, email,
         )
-        print(f"✓ [{role}] {email} — password hash updated.")
+        print(f"✓ [{role}] {email} — updated" + (f" (org linked)" if org else "") + ".")
     else:
         user_id = str(uuid.uuid4())
         await conn.execute(
             """INSERT INTO users
-                   (id, email, password_hash, full_name, role, is_active, email_verified)
-               VALUES ($1, $2, $3, $4, $5, true, true)""",
-            user_id, email, hash_password(password), user["full_name"], role,
+                   (id, email, password_hash, full_name, role, organisation_id, is_active, email_verified)
+               VALUES ($1, $2, $3, $4, $5, $6, true, true)""",
+            user_id, email, hash_password(password), user["full_name"], role, org,
         )
-        print(f"✓ [{role}] {email} — created.")
+        print(f"✓ [{role}] {email} — created" + (f" (org linked)" if org else "") + ".")
 
     print(f"  Password : {password}")
 
@@ -76,8 +78,14 @@ async def upsert_user(conn, user: dict) -> None:
 async def main():
     conn = await asyncpg.connect(DATABASE_URL)
     try:
+        # Pick a stable organisation to attribute the demo partner's reports to.
+        partner_org = await conn.fetchval(
+            "SELECT org_id FROM organisations ORDER BY org_name LIMIT 1"
+        )
+        if partner_org is None:
+            print("⚠ No organisations found — run seed_organisations.py first; partner will be unlinked.")
         for user in USERS:
-            await upsert_user(conn, user)
+            await upsert_user(conn, user, org_id=partner_org)
     finally:
         await conn.close()
 

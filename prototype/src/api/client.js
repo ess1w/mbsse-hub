@@ -13,6 +13,11 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1';
 // Active when no API URL is configured (static-only deploy).
 export const DEMO_MODE = !import.meta.env.VITE_API_URL;
 
+/** True when we should use local mock data — covers both no-backend deploys
+ *  and sessions that logged in with demo credentials (token = 'demo-token'). */
+export const usesDemoData = () =>
+  DEMO_MODE || localStorage.getItem('access_token') === 'demo-token';
+
 const DEMO_USERS = [
   { email: 'admin@mbsse.gov.sl',  password: 'demo2026', role: 'admin',   name: 'MBSSE Administrator' },
   { email: 'partner@example.com', password: 'demo2026', role: 'partner', name: 'Partner User' },
@@ -158,7 +163,8 @@ export const authApi = {
 export const organisationsApi = {
   list: (params = {}) => {
     const qs = new URLSearchParams(params).toString();
-    return apiFetch(`/organisations${qs ? '?' + qs : ''}`)
+    // Trailing slash avoids a cross-origin 307 redirect (FastAPI route is "/")
+    return apiFetch(`/organisations/${qs ? '?' + qs : ''}`)
       .catch(err => {
         if (err.message === 'Failed to fetch' || err.message.includes('NetworkError')) return [];
         throw err;
@@ -187,7 +193,7 @@ export const remindersApi = {
   /** List the reminder log. */
   list: (params = {}) => {
     const qs = new URLSearchParams(params).toString();
-    return apiFetch(`/reminders${qs ? '?' + qs : ''}`);
+    return apiFetch(`/reminders/${qs ? '?' + qs : ''}`);
   },
 };
 
@@ -196,10 +202,13 @@ export const remindersApi = {
 export const submissionsApi = {
   list: (params = {}) => {
     const qs = new URLSearchParams(params).toString();
-    return apiFetch(`/submissions${qs ? '?' + qs : ''}`);
+    // Trailing slash avoids a cross-origin 307 redirect (FastAPI route is "/")
+    return apiFetch(`/submissions/${qs ? '?' + qs : ''}`);
   },
   get: (id) => apiFetch(`/submissions/${id}`),
-  create: (data) => apiFetch('/submissions', { method: 'POST', body: JSON.stringify(data) }),
+  /** Consolidated submission-level report submit (resolves period/project server-side). */
+  submitReport: (data) => apiFetch('/submissions/submit-report', { method: 'POST', body: JSON.stringify(data) }),
+  create: (data) => apiFetch('/submissions/', { method: 'POST', body: JSON.stringify(data) }),
   saveDraft: (id, data) => apiFetch(`/submissions/${id}/draft`, { method: 'PATCH', body: JSON.stringify(data) }),
   submit: (id, data) => apiFetch(`/submissions/${id}/submit`, { method: 'POST', body: JSON.stringify(data) }),
   adminPatch: (id, data) => apiFetch(`/submissions/${id}/admin`, { method: 'PATCH', body: JSON.stringify(data) }),

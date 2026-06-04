@@ -26,6 +26,9 @@ celery==5.4.0
 redis==5.0.4                        # celery broker
 flower==2.0.1                       # celery monitoring (optional)
 
+# Scheduler (in-process async, no Redis required)
+apscheduler>=3.10,<4
+
 # Email
 sendgrid==6.11.0
 

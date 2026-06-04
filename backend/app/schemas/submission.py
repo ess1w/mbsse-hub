@@ -211,68 +211,123 @@ class SubmissionAdminPatch(BaseModel):
 
 # ── Response schema ───────────────────────────────────────────────────────────
 
+class SubmissionReportIn(BaseModel):
+    """Consolidated submission-level payload from the Reporting Form.
+
+    The active reporting period and the org's project are resolved server-side,
+    so the client only sends the narrative/quantitative submission fields.
+    """
+    # Optional — admin may submit on behalf of an org; partners use their own.
+    org_id: UUID | None = None
+
+    # Section F — results narrative
+    key_results: str | None = None
+    observed_changes: str | None = None
+    early_outcomes: str | None = None
+
+    # Section G — finance
+    expenditure: float | None = None
+    expenditure_currency: str = "USD"
+    budget_util: str | None = None
+
+    # Section H — coordination
+    gov_engaged: bool | None = None
+    gov_engaged_list: str | None = None
+    coordination_meetings: int = 0
+    key_partners: str | None = None
+
+    # Section I — challenges
+    challenges: str | None = None
+    risks: str | None = None
+    mitigations: str | None = None
+
+    # Section J — safeguarding
+    safeguarding_cases: bool = False
+    cases_reported: int = 0
+    cases_referred: int = 0
+    referral_pathway: str | None = None
+    safeguarding_action: str | None = None
+
+    # Section K — looking ahead
+    planned_activities: str | None = None
+    support_needed: str | None = None
+
+
 class SubmissionOut(BaseModel):
     model_config = {"from_attributes": True}
 
     id: UUID
-    organisation_id: UUID
+    org_id: UUID
     project_id: UUID
     reporting_period_id: UUID
     status: str
-    activity_title: str | None
-    description: str | None
-    submitted_at: datetime | None
-    verified_at: datetime | None
+    submitted_at: datetime | None = None
+    verified_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
-    # Focus areas come from the junction table
+
+    # Aggregated from the submission's activities
     focus_areas: list[str] = Field(default_factory=list)
+    # Enriched in the list endpoint via relationships
+    org_name: str | None = None
+    period_label: str | None = None
+
+
+class ActivitySummary(BaseModel):
+    """One activity within a submission, with rolled-up output indicators."""
+    model_config = {"from_attributes": True}
+    activity_title: str | None = None
+    activity_type: str | None = None
+    implementation_status: str | None = None
+    focus_areas: list[str] = Field(default_factory=list)
+    objectives: list[str] = Field(default_factory=list)
+    students_f: int = 0
+    students_m: int = 0
+    teachers_f: int = 0
+    teachers_m: int = 0
+    community_f: int = 0
+    community_m: int = 0
+    schools_total: int = 0
+
+
+class LocationSummary(BaseModel):
+    model_config = {"from_attributes": True}
+    district_name: str | None = None
+    chiefdom_name: str | None = None
+    community_name: str | None = None
+    school_name: str | None = None
 
 
 class SubmissionDetail(SubmissionOut):
-    """Full detail view — includes all 13 sections."""
-    district_id: int | None
-    chiefdom_id: int | None
-    community: str | None
-    school_id: UUID | None
-    objective: str | None
-    tactic: str | None
-    activity_type: str | None
-    intervention_level: str | None
-    impl_status: str | None
-    planned_vs_actual: str | None
-    activity_start: date | None
-    activity_end: date | None
-    schools_reached: int
-    teachers_trained: int
-    students_reached: int
-    community_sessions: int
-    safe_spaces_setup: int
-    srgbv_referrals: int
-    disagg_female: int
-    disagg_male: int
-    age_10_14: int
-    age_15_19: int
-    with_disability: int
-    out_of_school: int
-    key_results: str | None
-    observed_changes: str | None
-    early_outcomes: str | None
-    expenditure: float | None
-    expenditure_currency: str
-    budget_util: str | None
-    gov_engaged: bool | None
-    gov_counterpart: str | None
-    coordination_meetings: int
-    key_partners: str | None
-    challenges: str | None
-    risks: str | None
-    mitigations: str | None
-    safeguarding_cases: bool
-    num_cases: int
-    referral_pathway: str | None
-    safeguarding_action: str | None
-    planned_activities: str | None
-    support_needed: str | None
-    review_flag: str | None
-    review_notes: str | None
+    """Full verification view — every field an admin needs to review a report."""
+    # Section F — results narrative
+    key_results: str | None = None
+    observed_changes: str | None = None
+    early_outcomes: str | None = None
+    # Section G — finance
+    expenditure: float | None = None
+    budget_util: str | None = None
+    # Section H — coordination
+    gov_engaged: bool | None = None
+    gov_engaged_list: str | None = None
+    coordination_meetings: int = 0
+    key_partners: str | None = None
+    # Section I — challenges
+    challenges: str | None = None
+    risks: str | None = None
+    mitigations: str | None = None
+    # Section J — safeguarding
+    safeguarding_cases: bool = False
+    cases_reported: int = 0
+    cases_referred: int = 0
+    referral_pathway: str | None = None
+    safeguarding_action: str | None = None
+    # Section K — looking ahead
+    planned_activities: str | None = None
+    support_needed: str | None = None
+    # Review metadata
+    review_flag: str | None = None
+    review_notes: str | None = None
+    # Nested detail (built server-side)
+    activities: list[ActivitySummary] = Field(default_factory=list)
+    locations: list[LocationSummary] = Field(default_factory=list)

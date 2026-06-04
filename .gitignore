@@ -29,3 +29,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Build output (Render rebuilds via npm run build)
+prototype/dist/
