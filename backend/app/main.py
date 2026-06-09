@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="MBSSE School Safety Coordination Hub",
+    title="MBSSE SRGBV Coordination Hub",
     description="API for partner reporting, coordination, and monitoring.",
     version="1.0.0",
     docs_url="/docs",

@@ -1,5 +1,5 @@
 -- ============================================================
---  MBSSE School Safety Coordination Hub — PostgreSQL Schema
+--  MBSSE SRGBV Coordination Hub — PostgreSQL Schema
 --  v1.0 — May 2026
 -- ============================================================
 

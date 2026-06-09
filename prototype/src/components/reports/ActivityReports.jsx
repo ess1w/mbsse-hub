@@ -134,7 +134,7 @@ export default function ActivityReports({ user }) {
 
       {/* Footer note */}
       <div style={{ marginTop: 12, fontSize: 10, color: C.textMuted, textAlign: 'right', fontStyle: 'italic' }}>
-        Prototype v1.0 — illustrative data only · MBSSE School Safety Coordination Hub · May 2026
+        Prototype v1.0 — illustrative data only · MBSSE SRGBV Coordination Hub · May 2026
       </div>
     </main>
   );

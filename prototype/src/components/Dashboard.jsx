@@ -93,7 +93,7 @@ export default function Dashboard({ setActivePage }) {
   return (
     <main style={{ flex: 1, padding: '18px 20px', overflow: 'auto' }}>
       <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 3 }}>Dashboard</div>
-      <div style={{ fontSize: 11, color: C.textSec, marginBottom: 16 }}>School Safety Coordination Hub — Last updated: 25 April 2026</div>
+      <div style={{ fontSize: 11, color: C.textSec, marginBottom: 16 }}>SRGBV Coordination Hub — Last updated: 25 April 2026</div>
 
       {/* Filter bar */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', background: C.white, padding: '10px 14px', borderRadius: 8, border: `1px solid ${C.border}` }}>
@@ -468,7 +468,7 @@ export default function Dashboard({ setActivePage }) {
       </div>
 
       <div style={{ position: 'fixed', bottom: 12, right: 14, fontSize: 10, color: C.textMuted, fontStyle: 'italic', pointerEvents: 'none' }}>
-        Prototype v1.0 — MBSSE School Safety Coordination Hub — May 2026
+        Prototype v1.0 — MBSSE SRGBV Coordination Hub — May 2026
       </div>
     </main>
   );

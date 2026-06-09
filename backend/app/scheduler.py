@@ -148,7 +148,7 @@ def _build_email(
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a1a2e">
       <div style="background:#1F5C99;padding:16px 24px;border-radius:8px 8px 0 0">
         <span style="color:#fff;font-size:16px;font-weight:600">
-          MBSSE School Safety Coordination Hub
+          MBSSE SRGBV Coordination Hub
         </span>
       </div>
       <div style="background:#fff;padding:24px;border:1px solid #e2e8f0;
@@ -169,7 +169,7 @@ def _build_email(
         <hr style="border:none;border-top:1px solid #f1f5f9;margin:20px 0"/>
         <p style="font-size:11px;color:#94a3b8">
           Ministry of Basic and Senior Secondary Education, Sierra Leone<br/>
-          School Safety Coordination Hub
+          SRGBV Coordination Hub
         </p>
       </div>
     </div>

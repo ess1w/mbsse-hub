@@ -37,7 +37,7 @@ export default function TopNav({ activePage, setActivePage, user, onLogout }) {
           background: C.blue600, color: C.white, fontSize: 11, fontWeight: 600,
           padding: '4px 10px', borderRadius: 4,
         }}>MBSSE</div>
-        <span style={{ fontSize: 13, fontWeight: 500 }}>School Safety Coordination Hub</span>
+        <span style={{ fontSize: 13, fontWeight: 500 }}>SRGBV Coordination Hub</span>
         <div style={{ display: 'flex', gap: 4, marginLeft: 16 }}>
           {nav.map(n => (
             <button key={n.id} onClick={() => setActivePage(n.id)} style={{

@@ -55,7 +55,7 @@ export default function Login({ onLogin }) {
             <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: 0.5 }}>MBSSE</span>
           </div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: C.text, margin: '0 0 4px' }}>
-            School Safety Coordination Hub
+            SRGBV Coordination Hub
           </h1>
           <p style={{ fontSize: 13, color: C.textSec, margin: 0 }}>
             Sign in to your account

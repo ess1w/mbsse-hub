@@ -354,7 +354,7 @@ export default function PartnerDirectory() {
       {drawerPartner && <PartnerDrawer partner={drawerPartner} onClose={() => setDrawerPartner(null)} />}
 
       <div style={{ position: 'fixed', bottom: 12, right: 14, fontSize: 10, color: C.textMuted, fontStyle: 'italic', pointerEvents: 'none' }}>
-        Prototype v1.0 — MBSSE School Safety Coordination Hub — May 2026
+        Prototype v1.0 — MBSSE SRGBV Coordination Hub — May 2026
       </div>
     </main>
   );
