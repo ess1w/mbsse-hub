@@ -5,10 +5,12 @@ Revises: 0001
 Create Date: 2026-06-10
 
 Adds:
-  - gem_coordinator value to user_role enum
   - gem_reports table (one row per monthly submission)
   - gem_report_activities junction table (multi-select activities)
   - gem_report_key_messages junction table (multi-select key messages)
+
+Note: the users.role column is VARCHAR(10), not a PG enum type,
+so no ALTER TYPE is needed — 'gem_coordinator' works as a plain string value.
 """
 from alembic import op
 import sqlalchemy as sa
@@ -21,8 +23,13 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # ── Extend user_role enum ─────────────────────────────────────────────
-    op.execute("ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'gem_coordinator'")
+    # ── Widen users.role from VARCHAR(10) to VARCHAR(20) ──────────────────
+    # Required so 'gem_coordinator' (15 chars) is not truncated
+    op.alter_column('users', 'role',
+        existing_type=sa.String(10),
+        type_=sa.String(20),
+        existing_nullable=False,
+    )
 
     # ── New enums ─────────────────────────────────────────────────────────
     gem_impl_status = postgresql.ENUM(
@@ -146,4 +153,8 @@ def downgrade() -> None:
     op.execute("DROP TYPE IF EXISTS gem_submission_status")
     op.execute("DROP TYPE IF EXISTS gem_impl_reason")
     op.execute("DROP TYPE IF EXISTS gem_impl_status")
-    # Note: cannot remove a value from a Postgres enum — gem_coordinator remains in user_role
+    op.alter_column('users', 'role',
+        existing_type=sa.String(20),
+        type_=sa.String(10),
+        existing_nullable=False,
+    )
