@@ -22,6 +22,12 @@ const ROLE_META = {
     badge: { background: C.borderLight, color: C.textSec, border: `1px solid ${C.border}` },
     avatar: { background: C.borderLight, color: C.textSec },
   },
+  gem_coordinator: {
+    label: 'GEM Coordinator',
+    desc: 'Can submit monthly GEM Coordinator reports — dashboard and analytics access only',
+    badge: { background: C.greenBg, color: C.green900, border: `1px solid ${C.green100}` },
+    avatar: { background: C.greenBg, color: C.green700 },
+  },
 };
 
 const ORGS = [
@@ -82,7 +88,7 @@ const BLANK_FORM = { name: '', email: '', role: 'partner', org: '', sendInvite: 
 export default function UserManagement() {
   const [users, setUsers]               = useState(INIT_USERS);
   const [search, setSearch]             = useState('');
-  const [filterRole, setFilterRole]     = useState('All roles');
+  const [filterRole, setFilterRole]     = useState('');
   const [filterStatus, setFilterStatus] = useState('All statuses');
   const [expandedId, setExpandedId]     = useState(null);
   const [panelOpen, setPanelOpen]       = useState(false);
@@ -99,6 +105,7 @@ export default function UserManagement() {
     admins:   users.filter(u => u.role === 'admin').length,
     partners: users.filter(u => u.role === 'partner').length,
     viewers:  users.filter(u => u.role === 'viewer').length,
+    gemCoords: users.filter(u => u.role === 'gem_coordinator').length,
     inactive: users.filter(u => u.status === 'Inactive').length,
     pending:  users.filter(u => u.invitePending).length,
   }), [users]);
@@ -115,7 +122,7 @@ export default function UserManagement() {
         (u.org ?? '').toLowerCase().includes(q)
       );
     }
-    if (filterRole !== 'All roles') list = list.filter(u => u.role === filterRole.toLowerCase());
+    if (filterRole) list = list.filter(u => u.role === filterRole);
     if (filterStatus === 'Active')         list = list.filter(u => u.status === 'Active' && !u.invitePending);
     if (filterStatus === 'Inactive')       list = list.filter(u => u.status === 'Inactive');
     if (filterStatus === 'Invite pending') list = list.filter(u => u.invitePending);
@@ -160,7 +167,7 @@ export default function UserManagement() {
 
     if (editUser) {
       setUsers(prev => prev.map(u => u.id === editUser.id
-        ? { ...u, name: panelForm.name.trim(), email: panelForm.email.trim(), role: panelForm.role, org: panelForm.role === 'partner' ? panelForm.org : null }
+        ? { ...u, name: panelForm.name.trim(), email: panelForm.email.trim(), role: panelForm.role, org: panelForm.role === 'partner' ? panelForm.org : null, invitePending: u.invitePending }
         : u
       ));
       showToast('User updated successfully', 'ok');
@@ -239,13 +246,14 @@ export default function UserManagement() {
       </div>
 
       {/* Stat strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 16 }}>
         {[
-          { label: 'Total accounts',  val: stats.total,    sub: 'All roles combined' },
-          { label: 'Admins',          val: stats.admins,   sub: 'Full system access', accent: C.red500 },
-          { label: 'Partners',        val: stats.partners, sub: 'Report submitters' },
-          { label: 'Viewers',         val: stats.viewers,  sub: 'Read-only access' },
-          { label: 'Invite pending',  val: stats.pending,  sub: `${stats.inactive} inactive`, accent: stats.pending ? C.amber400 : undefined },
+          { label: 'Total accounts',    val: stats.total,     sub: 'All roles combined' },
+          { label: 'Admins',            val: stats.admins,    sub: 'Full system access', accent: C.red500 },
+          { label: 'Partners',          val: stats.partners,  sub: 'Report submitters' },
+          { label: 'Viewers',           val: stats.viewers,   sub: 'Read-only access' },
+          { label: 'GEM Coordinators',  val: stats.gemCoords, sub: 'Monthly reporters', accent: C.green700 },
+          { label: 'Invite pending',    val: stats.pending,   sub: `${stats.inactive} inactive`, accent: stats.pending ? C.amber400 : undefined },
         ].map(({ label, val, sub, accent }) => (
           <div key={label} style={{ background: C.white, border: `1px solid ${C.border}`, borderLeft: accent ? `3px solid ${accent}` : `1px solid ${C.border}`, borderRadius: 8, padding: '12px 16px' }}>
             <div style={{ fontSize: 22, fontWeight: 600, color: accent ? (accent === C.red500 ? C.red700 : C.amber700) : C.text, lineHeight: 1 }}>{val}</div>
@@ -264,10 +272,11 @@ export default function UserManagement() {
         </div>
         <span style={{ fontSize: 11, fontWeight: 600, color: C.textSec }}>Filter:</span>
         <select value={filterRole} onChange={e => setFilterRole(e.target.value)} style={selW}>
-          <option>All roles</option>
-          <option>Admin</option>
-          <option>Partner</option>
-          <option>Viewer</option>
+          <option value="">All roles</option>
+          <option value="admin">Admin</option>
+          <option value="partner">Partner</option>
+          <option value="viewer">Viewer</option>
+          <option value="gem_coordinator">GEM Coordinator</option>
         </select>
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={selW}>
           <option>All statuses</option>
@@ -275,7 +284,7 @@ export default function UserManagement() {
           <option>Inactive</option>
           <option>Invite pending</option>
         </select>
-        <button onClick={() => { setSearch(''); setFilterRole('All roles'); setFilterStatus('All statuses'); }}
+        <button onClick={() => { setSearch(''); setFilterRole(''); setFilterStatus('All statuses'); }}
           style={{ fontSize: 11, padding: '5px 10px', borderRadius: 5, background: 'transparent', color: C.textSec, border: `1px solid ${C.border}`, cursor: 'pointer' }}>
           Reset
         </button>
@@ -358,6 +367,9 @@ export default function UserManagement() {
                               ))}
                               {u.role === 'viewer' && ['Dashboard (read-only)','Partner directory (read-only)','Activity reports (read-only)'].map(p => (
                                 <span key={p} style={{ fontSize: 10, padding: '2px 8px', background: C.borderLight, color: C.textSec, border: `1px solid ${C.border}`, borderRadius: 4 }}>{p}</span>
+                              ))}
+                              {u.role === 'gem_coordinator' && ['Dashboard','Analytics','GEM Report (submit)'].map(p => (
+                                <span key={p} style={{ fontSize: 10, padding: '2px 8px', background: C.greenBg, color: C.green900, border: `1px solid ${C.green100}`, borderRadius: 4 }}>{p}</span>
                               ))}
                             </div>
                           </div>
@@ -451,7 +463,7 @@ export default function UserManagement() {
                 </div>
               </div>
 
-              {/* Organisation (partner only) */}
+              {/* Organisation (partner only — not needed for other roles) */}
               {panelForm.role === 'partner' && (
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 500, color: C.textSec, display: 'block', marginBottom: 2 }}>Organisation *</label>

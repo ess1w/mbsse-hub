@@ -2,7 +2,7 @@ import React from 'react';
 import { C } from '../tokens.js';
 
 const NAV = [
-  { section: 'Main', items: ['Dashboard', 'Partner directory', 'Reporting form', 'Submissions'] },
+  { section: 'Main', items: ['Dashboard', 'Partner directory', 'Reporting form', 'GEM Report', 'Submissions'] },
   { section: 'Reports', items: ['Activity reports', 'Analytics', 'Export data'] },
   { section: 'Admin', items: ['User management', 'Form settings', 'System settings'] },
 ];
@@ -14,13 +14,19 @@ const PAGE_MAP = {
   'Activity reports': 'reports',
   'Analytics':        'analytics',
   'Export data':      'export',
+  'GEM Report':       'gem',
   'Submissions':      'submissions',
   'User management':  'users',
 };
 
+// Items visible to GEM coordinators
+const GEM_ALLOWED = new Set(['Dashboard', 'Analytics']);
+
 export default function Sidebar({ activePage, setActivePage, user }) {
   const isAdmin  = user?.role === 'admin';
   const isViewer = user?.role === 'viewer';
+  const isGem    = user?.role === 'gem_coordinator';
+
   return (
     <aside style={{
       width: 178, background: C.white, borderRight: `1px solid ${C.border}`,
@@ -34,8 +40,10 @@ export default function Sidebar({ activePage, setActivePage, user }) {
             letterSpacing: '.08em', padding: '10px 14px 5px',
           }}>{section}</div>
           {items.filter(item => {
+            if (isGem) return GEM_ALLOWED.has(item);
             if (item === 'User management' && !isAdmin)  return false;
             if (item === 'Reporting form' && isViewer) return false;
+            if (item === 'GEM Report' && isViewer) return false;
             return true;
           }).map(item => {
             const pageId = PAGE_MAP[item];
