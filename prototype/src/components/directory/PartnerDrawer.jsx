@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { C, pill, statusVariant, objColor } from '../../tokens.js';
 
-export default function PartnerDrawer({ partner: p, onClose }) {
+export default function PartnerDrawer({ partner: p, onClose, isAdmin = false, onEdit }) {
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
@@ -112,16 +112,18 @@ export default function PartnerDrawer({ partner: p, onClose }) {
         </Section>
 
         {/* Admin actions */}
-        <div style={{ padding: '14px 20px' }}>
-          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: C.textMuted, marginBottom: 10 }}>Admin</div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button style={{ padding: '6px 12px', background: C.white, color: C.textSec, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>Edit profile</button>
-            <button style={{ padding: '6px 12px', background: C.white, color: C.textSec, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>View submissions</button>
-            {p.submissionStatus === 'Not submitted' && (
-              <button style={{ padding: '6px 12px', background: C.white, color: C.red700, border: `1px solid ${C.red100}`, borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>Send reminder</button>
-            )}
+        {isAdmin && (
+          <div style={{ padding: '14px 20px' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: C.textMuted, marginBottom: 10 }}>Admin</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button onClick={onEdit} style={{ padding: '6px 12px', background: C.white, color: C.blue600, border: `1px solid ${C.blue100}`, borderRadius: 6, fontSize: 11, cursor: 'pointer', fontWeight: 500 }}>Edit profile</button>
+              <button style={{ padding: '6px 12px', background: C.white, color: C.textSec, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>View submissions</button>
+              {p.submissionStatus === 'Not submitted' && (
+                <button style={{ padding: '6px 12px', background: C.white, color: C.red700, border: `1px solid ${C.red100}`, borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>Send reminder</button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </>
   );

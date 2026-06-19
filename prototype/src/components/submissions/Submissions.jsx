@@ -104,7 +104,7 @@ function DetailPanel({ sub, loading, isAdmin, onVerify, onClose }) {
         <div>
           <Section title="Status & finance" />
           <Row label="Submitted"       value={fmt(sub.submitted_at)} />
-          <Row label="Verified"        value={fmt(sub.verified_at)} />
+          {sub.status === 'verified' && <Row label="Verified" value={fmt(sub.verified_at)} />}
           <Row label="Expenditure"     value={money} />
           <Row label="Budget util."    value={sub.budget_util ?? '—'} />
 
@@ -162,6 +162,46 @@ function DetailPanel({ sub, loading, isAdmin, onVerify, onClose }) {
               <span key={i} style={{ fontSize: 10, padding: '3px 8px', borderRadius: 4, background: C.white, border: `1px solid ${C.border}`, color: C.textSec }}>
                 {[l.district_name, l.chiefdom_name, l.community_name, l.school_name].filter(Boolean).join(' · ') || '—'}
               </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Evidence files */}
+      {(sub.files ?? []).length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <Section title={`Evidence files (${sub.files.length})`} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {sub.files.map(f => (
+              <div key={f.id} style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '6px 10px', background: C.white, border: `1px solid ${C.border}`,
+                borderRadius: 5, fontSize: 11,
+              }}>
+                <span style={{ fontSize: 14 }}>
+                  {f.file_kind === 'photo' ? '📷' : '📄'}
+                </span>
+                <span style={{ flex: 1, color: C.text, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {f.original_filename}
+                </span>
+                <span style={{ color: C.textMuted, flexShrink: 0 }}>
+                  {f.file_kind === 'photo' ? 'Photo' : 'Document'}
+                </span>
+                {f.storage_url && (
+                  <a
+                    href={f.storage_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      fontSize: 11, padding: '3px 10px', borderRadius: 4, cursor: 'pointer',
+                      background: C.blueBg, color: C.blue600,
+                      border: `1px solid ${C.blue100}`, textDecoration: 'none', flexShrink: 0,
+                    }}
+                  >
+                    Open ↗
+                  </a>
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -352,7 +392,7 @@ export default function Submissions({ user }) {
                 <div style={{ fontSize: 11, color: C.textSec }}>{row.period}</div>
                 <div><Badge status={row.status} /></div>
                 <div style={{ fontSize: 11, color: C.textSec }}>{fmt(row.submitted_at)}</div>
-                <div style={{ fontSize: 11, color: C.textSec }}>{fmt(row.verified_at)}</div>
+                <div style={{ fontSize: 11, color: C.textSec }}>{row.status === 'verified' ? fmt(row.verified_at) : '—'}</div>
                 <div style={{ textAlign: 'right' }}>
                   <span style={{ fontSize: 10, color: C.blue600 }}>
                     {expanded === row.id ? '▲ Close' : '▼ View'}

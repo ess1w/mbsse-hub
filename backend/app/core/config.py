@@ -20,13 +20,23 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
 
     # Storage
-    storage_backend: str = "local"          # 'local' | 's3'
+    storage_backend: str = "local"          # 'local' | 's3' | 'gdrive'
     local_upload_dir: str = "./uploads"
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
     aws_s3_bucket: str = ""
     aws_region: str = "eu-west-1"
     s3_presigned_url_expiry: int = 3600
+
+    # Google Drive (pilot storage — optional)
+    gdrive_credentials_json: str = ""   # file path or JSON string
+    gdrive_folder_id: str = ""          # destination folder ID
+
+    # Cloudinary (pilot storage — recommended)
+    # Set STORAGE_BACKEND=cloudinary and provide the three vars below.
+    cloudinary_cloud_name: str = ""
+    cloudinary_api_key: str = ""
+    cloudinary_api_secret: str = ""
 
     # Email (SMTP)
     smtp_host: str = ""          # leave blank to use stdout in dev

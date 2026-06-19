@@ -10,6 +10,7 @@ import ActivityReports from './components/reports/ActivityReports.jsx';
 import ExportData from './components/reports/ExportData.jsx';
 import Submissions from './components/submissions/Submissions.jsx';
 import AnalyticsDashboard from './components/analytics/AnalyticsDashboard.jsx';
+import ProfileSettings from './components/profile/ProfileSettings.jsx';
 import Login from './components/Login.jsx';
 import { C } from './tokens.js';
 import { auth, authApi } from './api/client.js';
@@ -51,7 +52,7 @@ export default function App() {
         user={user}
         onLogout={handleLogout}
       />
-      <div style={{ display: 'flex', minHeight: 'calc(100vh - 48px)' }}>
+      <div style={{ display: 'flex', minHeight: 'calc(100vh - 50px)' }}>
         {showSidebar && <Sidebar activePage={activePage} setActivePage={setActivePage} user={user} />}
         {activePage === 'dashboard'  && <Dashboard setActivePage={setActivePage} user={user} />}
         {activePage === 'directory'  && <PartnerDirectory user={user} />}
@@ -62,6 +63,7 @@ export default function App() {
         {activePage === 'submissions' && <Submissions user={user} />}
         {activePage === 'export'      && <ExportData />}
         {activePage === 'analytics'   && <AnalyticsDashboard />}
+        {activePage === 'profile'     && <ProfileSettings user={user} />}
       </div>
     </div>
   );

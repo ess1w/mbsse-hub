@@ -220,6 +220,10 @@ class SubmissionReportIn(BaseModel):
     # Optional — admin may submit on behalf of an org; partners use their own.
     org_id: UUID | None = None
 
+    # Optional — partner can provide a project title; if omitted the existing
+    # project for the org is used (or a default one is created).
+    project_title: str | None = None
+
     # Section F — results narrative
     key_results: str | None = None
     observed_changes: str | None = None
@@ -298,6 +302,17 @@ class LocationSummary(BaseModel):
     school_name: str | None = None
 
 
+class UploadedFileOut(BaseModel):
+    model_config = {"from_attributes": True}
+    id: UUID
+    file_kind: str
+    original_filename: str
+    file_size_bytes: int
+    mime_type: str | None = None
+    storage_url: str | None = None
+    created_at: datetime
+
+
 class SubmissionDetail(SubmissionOut):
     """Full verification view — every field an admin needs to review a report."""
     # Section F — results narrative
@@ -331,3 +346,4 @@ class SubmissionDetail(SubmissionOut):
     # Nested detail (built server-side)
     activities: list[ActivitySummary] = Field(default_factory=list)
     locations: list[LocationSummary] = Field(default_factory=list)
+    files: list[UploadedFileOut] = Field(default_factory=list)

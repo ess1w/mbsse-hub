@@ -14,6 +14,7 @@ class TokenResponse(BaseModel):
     role: str
     organisation_id: str | None = None
     full_name: str | None = None
+    org_name: str | None = None
 
 
 class RefreshRequest(BaseModel):

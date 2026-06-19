@@ -18,10 +18,23 @@ backend/uploads/
 *.pdf
 *.xls
 *.xlsx
+*.pptx
 *.zip
 /*.html
 ~$*
 *.tmp
+
+# ── Secrets / credentials ────────────────────────────────────────────────────
+# Google service account keys and other JSON credential files
+backend/*.json
+Untitled.sql
+
+# ── Wireframes / design artefacts ───────────────────────────────────────────
+wireframes_v3/
+new-wireframes/
+
+# ── Duplicate root-level assets ─────────────────────────────────────────────
+prototype/*.png
 
 # ── OS / editor ──────────────────────────────────────────────────────────────
 .DS_Store

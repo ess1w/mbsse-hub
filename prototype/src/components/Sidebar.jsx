@@ -30,8 +30,8 @@ export default function Sidebar({ activePage, setActivePage, user }) {
   return (
     <aside style={{
       width: 178, background: C.white, borderRight: `1px solid ${C.border}`,
-      padding: '14px 0', flexShrink: 0, position: 'sticky', top: 48,
-      height: 'calc(100vh - 48px)', overflowY: 'auto',
+      padding: '14px 0', flexShrink: 0, position: 'sticky', top: 54,
+      height: 'calc(100vh - 54px)', overflowY: 'auto',
     }}>
       {NAV.map(({ section, items }) => (
         <div key={section}>

@@ -1,6 +1,8 @@
 """
-GET  /api/v1/organisations          → list (role-filtered)
-GET  /api/v1/organisations/{id}     → detail
+GET    /api/v1/organisations          → list (role-filtered)
+GET    /api/v1/organisations/{id}     → detail
+POST   /api/v1/organisations          → create (admin only)
+PATCH  /api/v1/organisations/{id}     → update (admin all fields; partner own contact only)
 
 Field names match data dictionary Sections 5.1-5.2.
 """
@@ -17,7 +19,7 @@ from app.models.project import Project
 from app.models.reporting_period import ReportingPeriod
 from app.models.submission import Submission
 from app.models.user import User
-from app.schemas.organisation import OrganisationOut, ProjectBrief
+from app.schemas.organisation import OrganisationOut, OrganisationCreate, OrganisationPatch, ProjectBrief
 
 router = APIRouter(prefix="/organisations", tags=["organisations"])
 
@@ -168,5 +170,98 @@ async def get_organisation(
     if current_user.role == "partner" and org.org_id != current_user.organisation_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
+    built = await _build_response([org], db)
+    return built[0]
+
+
+@router.post("/", response_model=OrganisationOut, status_code=201)
+async def create_organisation(
+    body: OrganisationCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_any),
+):
+    """Admin-only: create a new partner organisation."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    # Reject duplicate names
+    existing = await db.scalar(
+        select(Organisation).where(Organisation.org_name == body.org_name)
+    )
+    if existing:
+        raise HTTPException(status_code=409, detail="An organisation with this name already exists")
+
+    org = Organisation(
+        org_name=body.org_name,
+        org_type=body.org_type,
+        focal_person=body.focal_person,
+        email=body.email,
+        phone=body.phone,
+        sla_signed=body.sla_signed,
+        status=body.status,
+        districts=body.districts or [],
+        notes=body.notes,
+    )
+    db.add(org)
+    await db.commit()
+    await db.refresh(org)
+
+    built = await _build_response([org], db)
+    return built[0]
+
+
+@router.patch("/{org_id}", response_model=OrganisationOut)
+async def patch_organisation(
+    org_id: UUID,
+    body: OrganisationPatch,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_any),
+):
+    """Update organisation details.
+    - Admin: can update all fields.
+    - Partner: can only update focal_person, email, phone on their own org.
+    """
+    org = await db.get(Organisation, org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organisation not found")
+
+    is_admin = current_user.role == "admin"
+    is_own_org = current_user.organisation_id == org.org_id
+
+    if not is_admin and not is_own_org:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Contact fields — any authorised caller may update
+    if body.focal_person is not None:
+        org.focal_person = body.focal_person
+    if body.email is not None:
+        org.email = body.email
+    if body.phone is not None:
+        org.phone = body.phone
+
+    # Admin-only fields
+    if is_admin:
+        if body.org_name is not None:
+            # Check uniqueness if name is changing
+            if body.org_name != org.org_name:
+                clash = await db.scalar(
+                    select(Organisation).where(Organisation.org_name == body.org_name)
+                )
+                if clash:
+                    raise HTTPException(status_code=409, detail="An organisation with this name already exists")
+            org.org_name = body.org_name
+        if body.org_type is not None:
+            org.org_type = body.org_type
+        if body.sla_signed is not None:
+            org.sla_signed = body.sla_signed
+        if body.status is not None:
+            org.status = body.status
+        if body.districts is not None:
+            org.districts = body.districts
+        if body.notes is not None:
+            org.notes = body.notes
+
+    await db.commit()
+    await db.refresh(org)
     built = await _build_response([org], db)
     return built[0]

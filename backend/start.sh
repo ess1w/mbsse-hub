@@ -18,6 +18,12 @@ python seed_users.py
 echo "==> Seeding demo submissions..."
 python seed_submissions.py
 
+echo "==> Seeding pilot partner users..."
+python seed_pilot_users.py
+
+echo "==> Seeding sample data for analytics (Jan-Feb + Mar-Apr 2026)..."
+python seed_sample_data.py
+
 echo "==> Starting API server on port ${PORT:-8000}..."
 exec uvicorn app.main:app \
     --host 0.0.0.0 \

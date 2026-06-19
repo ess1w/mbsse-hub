@@ -9,10 +9,10 @@ const PAGE_SECTIONS = {
   3: ['I', 'J', 'K', 'L', 'M'],
 };
 
-const COMPLETED_INIT = { A: true, B: true };
+const COMPLETED_INIT = {};
 
-export default function ReportingForm({ setActivePage }) {
-  const [currentPage, setCurrentPage] = useState(2);
+export default function ReportingForm({ user, setActivePage }) {
+  const [currentPage, setCurrentPage] = useState(1);
   const [completedPages, setCompletedPages] = useState([1]);
   const [completedSections, setCompletedSections] = useState(COMPLETED_INIT);
   // Activity template for multi-activity repeater (Section C/D)
@@ -71,6 +71,7 @@ export default function ReportingForm({ setActivePage }) {
     actionTaken: '',
     plannedActivities: '',
     supportNeeded: '',
+    project: '',
     district: 'Bo',
     chiefdom: 'Valunia',
     community: 'Gondama',
@@ -99,6 +100,7 @@ export default function ReportingForm({ setActivePage }) {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  const [successToast, setSuccessToast] = useState(false);
 
   // File upload state (Section K)
   const [uploadedPhotos, setUploadedPhotos] = useState([]);
@@ -132,6 +134,7 @@ export default function ReportingForm({ setActivePage }) {
         name:      f.name,
         sizeLabel: formatFileSize(f.size),
         preview:   isImage && !overSize ? URL.createObjectURL(f) : null,
+        rawFile:   f,   // kept for upload on submit
         error:     overSize ? 'Exceeds 5 MB limit — please compress before uploading' : null,
       };
     });
@@ -150,6 +153,7 @@ export default function ReportingForm({ setActivePage }) {
         name:      f.name,
         sizeLabel: formatFileSize(f.size),
         preview:   null,
+        rawFile:   f,   // kept for upload on submit
         error:     overSize ? 'Exceeds 10 MB limit' : badType ? 'File type not supported' : null,
       };
     });
@@ -188,6 +192,7 @@ export default function ReportingForm({ setActivePage }) {
 
     // Map form state → submission-level API payload
     const payload = {
+      project_title:         form.project || null,
       key_results:           form.keyResults || null,
       observed_changes:      form.observedChanges || null,
       early_outcomes:        form.earlyOutcomes || null,
@@ -211,9 +216,24 @@ export default function ReportingForm({ setActivePage }) {
 
     setSubmitting(true);
     try {
-      await submissionsApi.submitReport(payload);
-      setSubmitted(true);
-      setCompletedPages([1, 2, 3]);
+      const submission = await submissionsApi.submitReport(payload);
+      const subId = submission.id;
+
+      // Upload valid files in parallel (skip any with validation errors)
+      const validPhotos = uploadedPhotos.filter(f => !f.error && f.rawFile);
+      const validDocs   = uploadedDocs.filter(f => !f.error && f.rawFile);
+      if (validPhotos.length + validDocs.length > 0) {
+        await Promise.all([
+          ...validPhotos.map(f => submissionsApi.uploadFile(subId, f.rawFile, 'photo')),
+          ...validDocs.map(f => submissionsApi.uploadFile(subId, f.rawFile, 'document')),
+        ]);
+      }
+
+      setSuccessToast(true);
+      setTimeout(() => {
+        setSuccessToast(false);
+        handleCancel();
+      }, 2000);
     } catch (e) {
       setSubmitError(e.message || 'Submission failed');
     } finally {
@@ -233,6 +253,7 @@ export default function ReportingForm({ setActivePage }) {
     setUploadedDocs([]);
     setAutosaveLabel('Auto-saved 2 min ago');
     setForm({
+      project: '',
       keyResults: '', observedChanges: '', earlyOutcomes: '',
       expenditure: '', currency: 'USD', budgetStatus: '',
       govEngaged: 'No', govCounterpart: '', coordinationMeetings: 0, keyPartners: '',
@@ -344,6 +365,16 @@ export default function ReportingForm({ setActivePage }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      {/* SUCCESS TOAST */}
+      {successToast && (
+        <div style={{
+          position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)',
+          background: C.green700, color: C.white, padding: '10px 22px', borderRadius: 8,
+          fontSize: 13, fontWeight: 500, zIndex: 9999, boxShadow: '0 4px 12px rgba(0,0,0,.2)',
+        }}>
+          ✓ Report submitted successfully
+        </div>
+      )}
       {/* STEPPER */}
       <div style={{
         background: C.white, borderBottom: `1px solid ${C.border}`,
@@ -451,7 +482,7 @@ export default function ReportingForm({ setActivePage }) {
             <div style={{ marginBottom: 16, paddingBottom: 14, borderBottom: `1px solid ${C.borderLight}` }}>
               <div style={{ fontSize: 16, fontWeight: 600 }}>Bi-monthly Activity Report — March / April 2026</div>
               <div style={{ fontSize: 11, color: C.textSec, marginTop: 4, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                Plan International <span style={{ color: C.border }}>|</span> Submitted by: Salaymatu Kamara <span style={{ color: C.border }}>|</span> Project: Girls Education SL
+                {user?.org_name ?? 'Your Organisation'} <span style={{ color: C.border }}>|</span> Submitted by: {user?.full_name ?? user?.email ?? '—'}
               </div>
             </div>
 
@@ -462,30 +493,42 @@ export default function ReportingForm({ setActivePage }) {
                   Page 1 of 3 <span style={{ fontSize: 10, fontWeight: 500, padding: '2px 8px', borderRadius: 4, background: C.blueBg, color: C.blue900 }}>Sections A – D · Reporting basics</span>
                 </div>
 
-                {/* A — Metadata (completed) */}
-                {section('A', C.green700, <>
-                  <SecHeader id="A" label="Reporting metadata" required done={completedSections.A} />
+                {/* A — Metadata */}
+                {section('A', completedSections.A ? C.green700 : C.blue600, <>
+                  <SecHeader id="A" label="Reporting metadata" required done={completedSections.A} systemManaged />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                     {compItem('Reporting period', 'Mar–Apr 2026')}
-                    {compItem('Organisation', 'Plan International')}
-                    {compItem('Project', 'Girls Education SL')}
+                    {compItem('Organisation', user?.org_name ?? '—')}
+                    {fl('Project / programme title', inp('project', 'e.g. Girls Education Programme SL…'))}
                     {compItem('Reporting frequency', 'Bi-monthly')}
                     {compItem('Submission date', <span style={{ fontSize: 10, padding: '2px 7px', background: C.blueBg, color: C.blue900, border: `1px solid ${C.blue100}`, borderRadius: 3 }}>Auto-captured on submit</span>)}
                     {compItem('Status', 'Draft')}
                   </div>
+                  {!completedSections.A && (
+                    <button onClick={() => setCompletedSections(s => ({ ...s, A: true }))}
+                      style={{ marginTop: 10, padding: '6px 14px', fontSize: 11, borderRadius: 5, border: `1px solid ${C.blue600}`, background: C.blueBg, color: C.blue600, cursor: 'pointer', fontWeight: 500 }}>
+                      ✓ Confirm metadata
+                    </button>
+                  )}
                 </>)}
 
-                {/* B — Geographic (completed) */}
-                {section('B', C.green700, <>
+                {/* B — Geographic */}
+                {section('B', completedSections.B ? C.green700 : C.blue600, <>
                   <SecHeader id="B" label="Geographic coverage" required done={completedSections.B} />
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                    {compItem('District', 'Bo')}
-                    {compItem('Chiefdom', 'Valunia')}
-                    {compItem('Community / Village', 'Gondama')}
-                    {compItem('School', 'Gondama Secondary School')}
-                    {compItem('EMIS code', '10042')}
-                    {compItem('GPS coordinates', <span style={{ color: C.textMuted }}>Not captured</span>)}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                    {fl('District', sel('district', DISTRICTS, null))}
+                    {fl('Chiefdom', inp('chiefdom', 'Chiefdom name…'))}
+                    {fl('Community / Village', inp('community', 'Community or village…'))}
+                    {fl('School name', inp('school', 'School name…'))}
+                    {fl('EMIS code', inp('emisCode', 'EMIS code…'))}
+                    {fl('GPS coordinates', <div style={{ fontSize: 11, color: C.textMuted, paddingTop: 4 }}>Not captured</div>)}
                   </div>
+                  {!completedSections.B && (
+                    <button onClick={() => setCompletedSections(s => ({ ...s, B: true }))}
+                      style={{ marginTop: 10, padding: '6px 14px', fontSize: 11, borderRadius: 5, border: `1px solid ${C.blue600}`, background: C.blueBg, color: C.blue600, cursor: 'pointer', fontWeight: 500 }}>
+                      ✓ Confirm location
+                    </button>
+                  )}
                 </>)}
 
                 {/* C — Activity Classification (multi-activity repeater per v3) */}

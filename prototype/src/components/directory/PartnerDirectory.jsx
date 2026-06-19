@@ -2,6 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { FOCUS_AREAS, OBJECTIVES, DISTRICTS } from '../../data/partners.js';
 import { C, pill, statusVariant, objColor } from '../../tokens.js';
 import PartnerDrawer from './PartnerDrawer.jsx';
+import AddPartnerModal from './AddPartnerModal.jsx';
+import EditPartnerModal from './EditPartnerModal.jsx';
 import { organisationsApi } from '../../api/client.js';
 
 /** Convert API response (data-dict field names) to the camelCase shape the UI expects */
@@ -105,7 +107,7 @@ function FocusTag({ label }) {
   );
 }
 
-export default function PartnerDirectory() {
+export default function PartnerDirectory({ user }) {
   const [partners, setPartners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -121,6 +123,18 @@ export default function PartnerDirectory() {
   const [drawerPartner, setDrawerPartner] = useState(null);
   const [sortCol, setSortCol] = useState('name');
   const [sortDir, setSortDir] = useState('asc');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editTarget, setEditTarget]     = useState(null);
+
+  const isAdmin = user?.role === 'admin';
+
+  const handleUpdated = (updatedOrg) => {
+    const ui = toUIFormat(updatedOrg);
+    setPartners(prev => prev.map(p => p.id === ui.id ? ui : p));
+    // Keep drawer in sync if it's open on the same partner
+    setDrawerPartner(prev => prev?.id === ui.id ? ui : prev);
+    setEditTarget(null);
+  };
 
   useEffect(() => {
     organisationsApi.list()
@@ -194,7 +208,9 @@ export default function PartnerDirectory() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button style={{ padding: '7px 12px', background: C.white, color: C.textSec, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>↓ Export CSV</button>
-          <button style={{ padding: '7px 16px', background: C.blue600, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>+ Add partner</button>
+          {isAdmin && (
+            <button onClick={() => setShowAddModal(true)} style={{ padding: '7px 16px', background: C.blue600, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>+ Add partner</button>
+          )}
         </div>
       </div>
 
@@ -305,7 +321,7 @@ export default function PartnerDirectory() {
                             <span onClick={() => setDrawerPartner(p)} style={{ fontSize: 11, color: C.blue600, cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}>View →</span>
                             {notSubmitted && <span style={{ fontSize: 11, color: C.red700, cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}>Send reminder</span>}
                             {isDraft && <span style={{ fontSize: 11, color: C.amber700, cursor: 'pointer', fontWeight: 500 }}>Chase</span>}
-                            {!notSubmitted && !isDraft && <span style={{ fontSize: 11, color: C.blue600, cursor: 'pointer', fontWeight: 500 }}>Edit</span>}
+                            {isAdmin && <span onClick={() => setEditTarget(p)} style={{ fontSize: 11, color: C.blue600, cursor: 'pointer', fontWeight: 500 }}>Edit</span>}
                           </div>
                         </td>
                       </tr>
@@ -351,7 +367,34 @@ export default function PartnerDirectory() {
       )}
 
       {/* DRAWER */}
-      {drawerPartner && <PartnerDrawer partner={drawerPartner} onClose={() => setDrawerPartner(null)} />}
+      {drawerPartner && (
+        <PartnerDrawer
+          partner={drawerPartner}
+          onClose={() => setDrawerPartner(null)}
+          isAdmin={isAdmin}
+          onEdit={() => setEditTarget(drawerPartner)}
+        />
+      )}
+
+      {/* EDIT PARTNER MODAL */}
+      {editTarget && (
+        <EditPartnerModal
+          partner={editTarget}
+          onClose={() => setEditTarget(null)}
+          onUpdated={handleUpdated}
+        />
+      )}
+
+      {/* ADD PARTNER MODAL */}
+      {showAddModal && (
+        <AddPartnerModal
+          onClose={() => setShowAddModal(false)}
+          onCreated={(newOrg) => {
+            setPartners(prev => [...prev, toUIFormat(newOrg)].sort((a, b) => a.name.localeCompare(b.name)));
+            setShowAddModal(false);
+          }}
+        />
+      )}
 
       <div style={{ position: 'fixed', bottom: 12, right: 14, fontSize: 10, color: C.textMuted, fontStyle: 'italic', pointerEvents: 'none' }}>
         Prototype v1.0 — MBSSE SRGBV Coordination Hub — May 2026

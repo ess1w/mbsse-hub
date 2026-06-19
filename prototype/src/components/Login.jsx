@@ -1,23 +1,24 @@
 import React, { useState } from 'react';
 import { C } from '../tokens.js';
 import { authApi, auth, DEMO_MODE } from '../api/client.js';
+import coatOfArms from '../assets/Coat_of_arms_of_Sierra_Leone.png';
 
 export default function Login({ onLogin }) {
-  const [email, setEmail] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [error, setError]       = useState('');
+  const [loading, setLoading]   = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       const data = await authApi.login(email, password);
       auth.setTokens({ access_token: data.access_token, refresh_token: data.refresh_token });
-      auth.setUser({ email, role: data.role, org_id: data.org_id, full_name: data.full_name });
-      onLogin({ email, role: data.role, org_id: data.org_id, full_name: data.full_name });
+      const userData = { email, role: data.role, organisation_id: data.organisation_id, org_name: data.org_name, full_name: data.full_name };
+      auth.setUser(userData);
+      onLogin(userData);
     } catch (err) {
       setError(
         err.message === 'HTTP 401' || err.message.includes('Incorrect')
@@ -32,34 +33,45 @@ export default function Login({ onLogin }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: C.bg,
+      background: '#f4f7f4',
       display: 'flex',
+      flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     }}>
-      <div style={{ width: 380 }}>
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+      {/* Sierra Leone flag colour strip */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, display: 'flex', height: 5, zIndex: 10 }}>
+        <div style={{ flex: 1, background: C.blue600 }} />
+        <div style={{ flex: 1, background: C.white, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }} />
+        <div style={{ flex: 1, background: C.slBlue }} />
+      </div>
+
+      <div style={{ width: 400, paddingTop: 20 }}>
+        {/* Government header */}
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <img
+            src={coatOfArms}
+            alt="Coat of Arms of Sierra Leone"
+            style={{ height: 96, marginBottom: 14, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.15))' }}
+          />
           <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 10,
-            background: C.blue900,
-            color: C.white,
-            padding: '8px 18px',
-            borderRadius: 8,
-            marginBottom: 16,
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
+            textTransform: 'uppercase', color: C.blue600, marginBottom: 5,
           }}>
-            <span style={{ fontSize: 18 }}>🎓</span>
-            <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: 0.5 }}>MBSSE</span>
+            Republic of Sierra Leone
           </div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: C.text, margin: '0 0 4px' }}>
-            SRGBV Coordination Hub
-          </h1>
-          <p style={{ fontSize: 13, color: C.textSec, margin: 0 }}>
-            Sign in to your account
-          </p>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.text, lineHeight: 1.4 }}>
+            Ministry of Basic and Senior Secondary Education
+          </div>
+          <div style={{
+            display: 'inline-block', marginTop: 10,
+            background: C.blue600, color: C.white,
+            fontSize: 11, fontWeight: 600, padding: '4px 14px',
+            borderRadius: 4, letterSpacing: '0.04em',
+          }}>
+            SRGBV School Safety Coordination Hub
+          </div>
         </div>
 
         {/* Demo credentials notice */}
@@ -77,14 +89,18 @@ export default function Login({ onLogin }) {
           </div>
         )}
 
-        {/* Card */}
+        {/* Login card */}
         <div style={{
           background: C.white,
           border: `1px solid ${C.border}`,
           borderRadius: 12,
           padding: 32,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
         }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 20 }}>
+            Sign in to your account
+          </div>
+
           <form onSubmit={handleSubmit}>
             <label style={labelStyle}>Email address</label>
             <input
@@ -109,13 +125,9 @@ export default function Login({ onLogin }) {
 
             {error && (
               <div style={{
-                marginTop: 14,
-                padding: '8px 12px',
-                background: C.redBg,
-                border: `1px solid ${C.red100}`,
-                borderRadius: 6,
-                color: C.red900,
-                fontSize: 12,
+                marginTop: 14, padding: '8px 12px',
+                background: C.redBg, border: `1px solid ${C.red100}`,
+                borderRadius: 6, color: C.red900, fontSize: 12,
               }}>
                 {error}
               </div>
@@ -125,15 +137,10 @@ export default function Login({ onLogin }) {
               type="submit"
               disabled={loading}
               style={{
-                marginTop: 20,
-                width: '100%',
-                padding: '10px 0',
-                background: loading ? C.blue200 : C.blue700,
-                color: C.white,
-                border: 'none',
-                borderRadius: 7,
-                fontSize: 13,
-                fontWeight: 600,
+                marginTop: 20, width: '100%', padding: '10px 0',
+                background: loading ? C.blue200 : C.blue600,
+                color: C.white, border: 'none', borderRadius: 7,
+                fontSize: 13, fontWeight: 600,
                 cursor: loading ? 'not-allowed' : 'pointer',
                 transition: 'background 0.15s',
               }}
@@ -144,7 +151,7 @@ export default function Login({ onLogin }) {
         </div>
 
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: C.textMuted }}>
-          Ministry of Basic and Senior Secondary Education · Sierra Leone
+          Supported by UNICEF Sierra Leone
         </p>
       </div>
     </div>
@@ -152,21 +159,13 @@ export default function Login({ onLogin }) {
 }
 
 const labelStyle = {
-  display: 'block',
-  fontSize: 12,
-  fontWeight: 600,
-  color: C.text,
-  marginBottom: 6,
+  display: 'block', fontSize: 12, fontWeight: 600,
+  color: C.text, marginBottom: 6,
 };
 
 const inputStyle = {
-  width: '100%',
-  padding: '8px 10px',
-  fontSize: 13,
-  border: `1px solid ${C.border}`,
-  borderRadius: 6,
-  outline: 'none',
-  boxSizing: 'border-box',
-  color: C.text,
-  background: C.white,
+  width: '100%', padding: '8px 10px', fontSize: 13,
+  border: `1px solid ${C.border}`, borderRadius: 6,
+  outline: 'none', boxSizing: 'border-box',
+  color: C.text, background: C.white,
 };

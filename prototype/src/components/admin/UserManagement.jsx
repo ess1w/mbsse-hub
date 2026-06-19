@@ -81,6 +81,27 @@ const StatusBadge = ({ status, pending }) => {
   return <span style={{ ...s, fontSize: 10, padding: '2px 9px', borderRadius: 10, fontWeight: 500, display: 'inline-block' }}>{status}</span>;
 };
 
+// ── PanelInput must live outside UserManagement so React doesn't remount it
+// on every keystroke (defining it inside the component creates a new function
+// identity each render, which causes React to unmount/remount the input and
+// lose focus after every character typed).
+function PanelInput({ fieldKey, placeholder, type = 'text', value, error, onChange }) {
+  return (
+    <input
+      value={value}
+      onChange={e => onChange(fieldKey, e.target.value)}
+      type={type}
+      placeholder={placeholder}
+      style={{
+        width: '100%', height: 36,
+        border: `1px solid ${error ? C.red500 : C.border}`,
+        borderRadius: 6, padding: '0 10px', fontSize: 12,
+        boxSizing: 'border-box', outline: 'none', color: C.text,
+      }}
+    />
+  );
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
 
 const BLANK_FORM = { name: '', email: '', role: 'partner', org: '', sendInvite: true };
@@ -219,15 +240,6 @@ export default function UserManagement() {
   const selW = { fontSize: 11, padding: '5px 9px', border: `1px solid ${C.border}`, borderRadius: 5, background: C.white, color: C.text, cursor: 'pointer' };
   const thS  = { textAlign: 'left', padding: '9px 14px', fontSize: 10, fontWeight: 600, color: C.textSec, borderBottom: `1px solid ${C.border}`, background: '#f8fafc', whiteSpace: 'nowrap', userSelect: 'none' };
   const tdS  = { padding: '10px 14px', borderBottom: `1px solid ${C.borderLight}`, verticalAlign: 'middle' };
-
-  const PanelInput = ({ fieldKey, placeholder, type = 'text' }) => (
-    <input
-      value={panelForm[fieldKey]}
-      onChange={e => setPField(fieldKey, e.target.value)}
-      type={type} placeholder={placeholder}
-      style={{ width: '100%', height: 36, border: `1px solid ${panelErrors[fieldKey] ? C.red500 : C.border}`, borderRadius: 6, padding: '0 10px', fontSize: 12, boxSizing: 'border-box', outline: 'none', color: C.text }}
-    />
-  );
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -430,14 +442,14 @@ export default function UserManagement() {
               {/* Full name */}
               <div>
                 <label style={{ fontSize: 11, fontWeight: 500, color: C.textSec, display: 'block', marginBottom: 5 }}>Full name *</label>
-                <PanelInput fieldKey="name" placeholder="e.g. Aminata Sesay" />
+                <PanelInput fieldKey="name" placeholder="e.g. Aminata Sesay" value={panelForm.name} error={panelErrors.name} onChange={setPField} />
                 {panelErrors.name && <div style={{ fontSize: 10, color: C.red700, marginTop: 3 }}>{panelErrors.name}</div>}
               </div>
 
               {/* Email */}
               <div>
                 <label style={{ fontSize: 11, fontWeight: 500, color: C.textSec, display: 'block', marginBottom: 5 }}>Email address *</label>
-                <PanelInput fieldKey="email" placeholder="user@organisation.org" type="email" />
+                <PanelInput fieldKey="email" placeholder="user@organisation.org" type="email" value={panelForm.email} error={panelErrors.email} onChange={setPField} />
                 {panelErrors.email && <div style={{ fontSize: 10, color: C.red700, marginTop: 3 }}>{panelErrors.email}</div>}
               </div>
 

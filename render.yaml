@@ -19,10 +19,12 @@ services:
       # Set this to the URL of the deployed API service (update after first deploy)
       - key: VITE_API_URL
         value: https://mbsse-hub-api.onrender.com/api/v1
-      # Optional: public Metabase dashboard URL for the Analytics page.
-      # Leave unset to show a placeholder instead of a broken localhost iframe.
-      # - key: VITE_METABASE_URL
-      #   value: https://your-metabase-host/public/dashboard/<id>
+      # Apache Superset analytics dashboard embedded in the Analytics tab.
+      # Set to your public Superset URL with ?standalone=2 appended, e.g.:
+      #   https://your-superset-host/superset/dashboard/mbsse-school-safety-hub/?standalone=2
+      # Leave unset to show a setup prompt instead of the iframe.
+      - key: VITE_SUPERSET_URL
+        sync: false
 
   # ── Backend (FastAPI) ────────────────────────────────────────────────────────
   - type: web

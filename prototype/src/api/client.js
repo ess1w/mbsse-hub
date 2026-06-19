@@ -79,7 +79,8 @@ async function refreshAccessToken() {
 export async function apiFetch(path, options = {}) {
   const token = auth.getAccessToken();
   const headers = {
-    'Content-Type': 'application/json',
+    // Don't set Content-Type for FormData — the browser must set it with the multipart boundary
+    ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
@@ -116,7 +117,13 @@ export async function apiFetch(path, options = {}) {
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail ?? `HTTP ${res.status}`);
+    const detail = body.detail;
+    const msg = typeof detail === 'string'
+      ? detail
+      : Array.isArray(detail)
+        ? detail.map(e => e.msg ?? JSON.stringify(e)).join('; ')
+        : `HTTP ${res.status}`;
+    throw new Error(msg);
   }
 
   // 204 No Content
@@ -171,6 +178,10 @@ export const organisationsApi = {
       });
   },
   get: (id) => apiFetch(`/organisations/${id}`),
+  /** Admin only: create a new partner organisation. */
+  create: (data) => apiFetch('/organisations/', { method: 'POST', body: JSON.stringify(data) }),
+  /** Admin (all fields) or partner (contact fields only) update. */
+  patch: (id, data) => apiFetch(`/organisations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 };
 
 // ── Users API calls (admin) ───────────────────────────────────────────────────
@@ -214,11 +225,10 @@ export const submissionsApi = {
   adminPatch: (id, data) => apiFetch(`/submissions/${id}/admin`, { method: 'PATCH', body: JSON.stringify(data) }),
   uploadFile: (id, file, fileKind) => {
     const form = new FormData();
-    form.append('file', file);
-    // Remove Content-Type so the browser sets the multipart boundary automatically
+    // FastAPI parameter name is 'upload' (must match the route declaration)
+    form.append('upload', file);
     return apiFetch(`/submissions/${id}/files?file_kind=${fileKind}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${auth.getAccessToken()}` },
       body: form,
     });
   },

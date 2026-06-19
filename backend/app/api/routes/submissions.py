@@ -6,10 +6,13 @@ Permission matrix:
   viewer   → read all submissions (no write)
   admin    → full CRUD + patch status/flag
 """
+import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+
+logger = logging.getLogger(__name__)
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +34,7 @@ from app.schemas.submission import (
     SubmissionOut,
     SubmissionReportIn,
     SubmissionSubmit,
+    UploadedFileOut,
 )
 from app.services.file_storage import store_file
 from app.services.audit import log_action
@@ -157,13 +161,20 @@ async def submit_report(
     project_id = await db.scalar(select(Project.project_id).where(Project.org_id == org_id).limit(1))
     if not project_id:
         org_name = await db.scalar(select(Organisation.org_name).where(Organisation.org_id == org_id))
-        proj = Project(org_id=org_id, project_title=f"SRGBV Programme — {org_name}", project_status="Active")
+        title = body.project_title or f"SRGBV Programme — {org_name}"
+        proj = Project(org_id=org_id, project_title=title, project_status="Active")
         db.add(proj)
         await db.flush()
         project_id = proj.project_id
+    elif body.project_title:
+        # Update project title if the partner changed it
+        proj = await db.get(Project, project_id)
+        if proj:
+            proj.project_title = body.project_title
 
     # ── Upsert submission for (org, period) ───────────────────────────────────
     data = body.model_dump(exclude={"org_id"}, exclude_unset=True)
+    from sqlalchemy import delete as sa_delete
     sub = await db.scalar(
         select(Submission).where(
             Submission.org_id == org_id,
@@ -173,6 +184,10 @@ async def submit_report(
     if sub:
         for k, v in data.items():
             setattr(sub, k, v)
+        # Remove stale files so a resubmission doesn't accumulate old uploads
+        await db.execute(
+            sa_delete(UploadedFile).where(UploadedFile.submission_id == sub.id)
+        )
     else:
         sub = Submission(
             org_id=org_id,
@@ -264,6 +279,7 @@ async def get_submission(
                 joinedload(Submission.reporting_period),
                 selectinload(Submission.activities).selectinload(Activity.output_indicators),
                 selectinload(Submission.locations),
+                selectinload(Submission.files),
             )
             .where(Submission.id == submission_id)
         )
@@ -295,6 +311,7 @@ async def get_submission(
         for a in s.activities
     ]
     out.locations = [LocationSummary.model_validate(loc) for loc in s.locations]
+    out.files = [UploadedFileOut.model_validate(f) for f in s.files]
     return out
 
 
@@ -446,12 +463,17 @@ async def upload_file(
         mb = max_bytes // (1024 * 1024)
         raise HTTPException(status_code=413, detail=f"File exceeds {mb} MB limit")
 
-    stored_key, storage_url = await store_file(
-        content=content,
-        original_filename=upload.filename,
-        submission_id=str(submission_id),
-        file_kind=file_kind,
-    )
+    try:
+        stored_key, storage_url = await store_file(
+            content=content,
+            original_filename=upload.filename,
+            submission_id=str(submission_id),
+            file_kind=file_kind,
+            mime_type=upload.content_type or "application/octet-stream",
+        )
+    except Exception as exc:
+        logger.error("File storage failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"File storage error: {exc}")
 
     file_rec = UploadedFile(
         submission_id=submission_id,

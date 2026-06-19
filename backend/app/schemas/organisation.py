@@ -55,3 +55,19 @@ class OrganisationCreate(BaseModel):
     status: str = "Pending"
     districts: list[str] = []
     notes: str | None = None
+
+
+class OrganisationPatch(BaseModel):
+    """Partial update schema.
+    Partners may update contact fields on their own org only.
+    Admins may update all fields."""
+    focal_person: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    # Admin-only fields (ignored for partner callers)
+    org_name: str | None = None
+    org_type: str | None = None
+    sla_signed: bool | None = None
+    status: str | None = None
+    districts: list[str] | None = None
+    notes: str | None = None

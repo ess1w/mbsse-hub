@@ -1208,20 +1208,38 @@ async def seed_districts(conn):
 
 
 async def seed_reporting_period(conn):
-    existing = await conn.fetchval("SELECT id FROM reporting_periods WHERE is_active = true")
-    if not existing:
-        pid = str(uuid.uuid4())
-        await conn.execute(
-            """INSERT INTO reporting_periods (id, label, start_date, end_date, deadline, is_active)
-               VALUES ($1, $2, $3, $4, $5, true)""",
-            pid, "Jan–Feb 2026",
-            date.fromisoformat("2026-01-01"),
-            date.fromisoformat("2026-02-28"),
-            date.fromisoformat("2026-03-15"),
+    """Ensure both bi-monthly periods exist with the correct active flag.
+
+    Jan–Feb 2026  → historical (is_active = false)
+    Mar–Apr 2026  → current active period (is_active = true)
+    """
+    periods = [
+        ("Jan–Feb 2026", "2026-01-01", "2026-02-28", "2026-03-15", False),
+        ("Mar–Apr 2026", "2026-03-01", "2026-04-30", "2026-05-15", True),
+    ]
+    for label, start, end, deadline, is_active in periods:
+        existing = await conn.fetchval(
+            "SELECT id FROM reporting_periods WHERE label = $1", label
         )
-        print("  ✓  Reporting period Jan–Feb 2026 created")
-    else:
-        print("  –  Active reporting period already exists")
+        if not existing:
+            pid = str(uuid.uuid4())
+            await conn.execute(
+                """INSERT INTO reporting_periods (id, label, start_date, end_date, deadline, is_active)
+                   VALUES ($1, $2, $3, $4, $5, $6)""",
+                pid, label,
+                date.fromisoformat(start),
+                date.fromisoformat(end),
+                date.fromisoformat(deadline),
+                is_active,
+            )
+            print(f"  ✓  Reporting period {label} created (active={is_active})")
+        else:
+            # Ensure the active flag is correct even on re-runs
+            await conn.execute(
+                "UPDATE reporting_periods SET is_active = $1 WHERE label = $2",
+                is_active, label,
+            )
+            print(f"  –  Reporting period {label} already exists (active set to {is_active})")
 
 
 async def main():

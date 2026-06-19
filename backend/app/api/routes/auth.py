@@ -20,6 +20,7 @@ from app.core.security import (
     verify_password,
 )
 from app.db.session import get_db
+from app.models.organisation import Organisation
 from app.models.token_blacklist import TokenBlacklist
 from app.models.user import User
 from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
@@ -43,6 +44,11 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     user.last_login = datetime.now(timezone.utc)
     db.add(user)
 
+    org_name = None
+    if user.organisation_id:
+        org = await db.get(Organisation, user.organisation_id)
+        org_name = org.org_name if org else None
+
     return TokenResponse(
         access_token=create_access_token(
             str(user.id), user.role, str(user.organisation_id) if user.organisation_id else None
@@ -51,6 +57,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
         role=user.role,
         full_name=user.full_name,
         organisation_id=str(user.organisation_id) if user.organisation_id else None,
+        org_name=org_name,
     )
 
 
@@ -75,6 +82,11 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found or inactive")
 
+    org_name = None
+    if user.organisation_id:
+        org = await db.get(Organisation, user.organisation_id)
+        org_name = org.org_name if org else None
+
     return TokenResponse(
         access_token=create_access_token(
             str(user.id), user.role, str(user.organisation_id) if user.organisation_id else None
@@ -83,6 +95,7 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
         role=user.role,
         full_name=user.full_name,
         organisation_id=str(user.organisation_id) if user.organisation_id else None,
+        org_name=org_name,
     )
 
 
