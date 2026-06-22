@@ -2,15 +2,16 @@ import React from 'react';
 import { C } from '../tokens.js';
 
 const NAV = [
-  { section: 'Main', items: ['Dashboard', 'Partner directory', 'Reporting form', 'GEM Report', 'Submissions'] },
+  { section: 'Main', items: ['Home', 'Dashboard', 'Partner directory', 'Reporting form', 'GEM Report', 'Submissions'] },
   { section: 'Reports', items: ['Activity reports', 'Analytics', 'Export data'] },
   { section: 'Admin', items: ['User management', 'Form settings', 'System settings'] },
 ];
 
 const PAGE_MAP = {
-  'Dashboard': 'dashboard',
+  'Home':             'partner-home',
+  'Dashboard':        'dashboard',
   'Partner directory': 'directory',
-  'Reporting form': 'form',
+  'Reporting form':   'form',
   'Activity reports': 'reports',
   'Analytics':        'analytics',
   'Export data':      'export',
@@ -41,6 +42,7 @@ export default function Sidebar({ activePage, setActivePage, user }) {
           }}>{section}</div>
           {items.filter(item => {
             if (isGem) return GEM_ALLOWED.has(item);
+            if (item === 'Home' && user?.role !== 'partner') return false;
             if (item === 'User management' && !isAdmin)  return false;
             if (item === 'Reporting form' && isViewer) return false;
             if (item === 'GEM Report' && isViewer) return false;

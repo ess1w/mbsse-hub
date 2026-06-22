@@ -28,8 +28,8 @@ export default function ProfileSettings({ user }) {
   const [editing, setEditing] = useState(false);
 
   useEffect(() => {
-    if (!user?.org_id) { setLoading(false); return; }
-    organisationsApi.get(user.org_id)
+    if (!user?.organisation_id) { setLoading(false); return; }
+    organisationsApi.get(user.organisation_id)
       .then(data => {
         setOrg(data);
         setForm({
@@ -40,7 +40,7 @@ export default function ProfileSettings({ user }) {
       })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
-  }, [user?.org_id]);
+  }, [user?.organisation_id]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -48,7 +48,7 @@ export default function ProfileSettings({ user }) {
     setSaveError('');
     setSaved(false);
     try {
-      const updated = await organisationsApi.patch(user.org_id, {
+      const updated = await organisationsApi.patch(user.organisation_id, {
         focal_person: form.focal_person || null,
         email:        form.email        || null,
         phone:        form.phone        || null,
@@ -86,7 +86,7 @@ export default function ProfileSettings({ user }) {
     </main>
   );
 
-  if (!user?.org_id) return (
+  if (!user?.organisation_id) return (
     <main style={{ flex: 1, padding: '32px 28px' }}>
       <div style={{ maxWidth: 480, background: C.amberBg, border: `1px solid ${C.amber100}`, borderRadius: 8, padding: '16px 20px', fontSize: 13, color: C.amber700 }}>
         Your account is not linked to a partner organisation. Contact an MBSSE administrator to assign your account.
