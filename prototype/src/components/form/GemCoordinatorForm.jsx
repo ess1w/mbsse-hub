@@ -310,10 +310,10 @@ export default function GemCoordinatorForm({ user, setActivePage }) {
             Submit Another
           </button>
           <button
-            onClick={() => setActivePage('dashboard')}
+            onClick={() => setActivePage('gem-home')}
             style={{ padding: '9px 24px', background: C.bg, color: C.text, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, cursor: 'pointer' }}
           >
-            Go to Dashboard
+            Go to Home
           </button>
         </div>
       </div>
@@ -573,6 +573,21 @@ export default function GemCoordinatorForm({ user, setActivePage }) {
           }}
         >
           {submitting ? 'Submitting…' : 'Submit Report'}
+        </button>
+
+        <button
+          onClick={() => setActivePage('gem-home')}
+          style={{
+            padding: '9px 24px',
+            background: 'transparent',
+            color: C.red700,
+            border: `1px solid ${C.red100}`,
+            borderRadius: 7,
+            fontSize: 13,
+            cursor: 'pointer',
+          }}
+        >
+          ✕ Cancel
         </button>
       </div>
     </div>

@@ -8,7 +8,7 @@ const NAV = [
 ];
 
 const PAGE_MAP = {
-  'Home':             'partner-home',
+  'Home':             'partner-home', // overridden for gem_coordinator → 'gem-home' below
   'Dashboard':        'dashboard',
   'Partner directory': 'directory',
   'Reporting form':   'form',
@@ -21,12 +21,18 @@ const PAGE_MAP = {
 };
 
 // Items visible to GEM coordinators
-const GEM_ALLOWED = new Set(['Dashboard', 'Analytics']);
+const GEM_ALLOWED = new Set(['Home', 'Dashboard', 'Analytics', 'GEM Report']);
 
 export default function Sidebar({ activePage, setActivePage, user }) {
-  const isAdmin  = user?.role === 'admin';
-  const isViewer = user?.role === 'viewer';
-  const isGem    = user?.role === 'gem_coordinator';
+  const isAdmin   = user?.role === 'admin';
+  const isViewer  = user?.role === 'viewer';
+  const isGem     = user?.role === 'gem_coordinator';
+  const isPartner = user?.role === 'partner';
+
+  const resolvePageId = (item) => {
+    if (item === 'Home') return isGem ? 'gem-home' : 'partner-home';
+    return PAGE_MAP[item];
+  };
 
   return (
     <aside style={{
@@ -42,13 +48,14 @@ export default function Sidebar({ activePage, setActivePage, user }) {
           }}>{section}</div>
           {items.filter(item => {
             if (isGem) return GEM_ALLOWED.has(item);
-            if (item === 'Home' && user?.role !== 'partner') return false;
-            if (item === 'User management' && !isAdmin)  return false;
+            if (item === 'Home' && !isPartner) return false;
+            if (item === 'GEM Report' && isPartner) return false;
+            if (item === 'User management' && !isAdmin) return false;
             if (item === 'Reporting form' && isViewer) return false;
             if (item === 'GEM Report' && isViewer) return false;
             return true;
           }).map(item => {
-            const pageId = PAGE_MAP[item];
+            const pageId = resolvePageId(item);
             const isActive = pageId && activePage === pageId;
             return (
               <div key={item} onClick={() => pageId && setActivePage(pageId)} style={{

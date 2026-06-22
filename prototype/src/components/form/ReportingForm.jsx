@@ -264,6 +264,7 @@ export default function ReportingForm({ user, setActivePage }) {
       school: 'Gondama Secondary School', emisCode: '10042',
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    setActivePage('partner-home');
   };
 
   const setField = (key, val) => setForm(f => ({ ...f, [key]: val }));
@@ -430,6 +431,20 @@ export default function ReportingForm({ user, setActivePage }) {
           padding: '12px 0', position: 'sticky', top: 100,
           height: 'calc(100vh - 100px)', overflowY: 'auto',
         }}>
+          {/* Home navigation link */}
+          <div
+            onClick={() => setActivePage('partner-home')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 7,
+              padding: '6px 14px 10px', fontSize: 11, cursor: 'pointer',
+              color: C.textSec, borderBottom: `1px solid ${C.borderLight}`,
+              marginBottom: 6,
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = C.blue600}
+            onMouseLeave={e => e.currentTarget.style.color = C.textSec}
+          >
+            ← Home
+          </div>
           {[1, 2, 3].map(pg => {
             const isDone = completedPages.includes(pg) && pg !== currentPage;
             const isCurrent = pg === currentPage;
