@@ -26,3 +26,9 @@ apscheduler>=3.10,<4
 
 # Utilities
 python-dotenv>=1.0
+
+# Async HTTP (Preset guest token requests)
+httpx>=0.27.0
+
+# File storage
+cloudinary>=1.40.0
