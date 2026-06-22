@@ -11,6 +11,7 @@ import ExportData from './components/reports/ExportData.jsx';
 import Submissions from './components/submissions/Submissions.jsx';
 import AnalyticsDashboard from './components/analytics/AnalyticsDashboard.jsx';
 import ProfileSettings from './components/profile/ProfileSettings.jsx';
+import PartnerHome from './components/PartnerHome.jsx';
 import Login from './components/Login.jsx';
 import { C } from './tokens.js';
 import { auth, authApi } from './api/client.js';
@@ -24,7 +25,7 @@ export default function App() {
 
   function handleLogin(userData) {
     setUser(userData);
-    setActivePage('dashboard');
+    setActivePage(userData.role === 'partner' ? 'partner-home' : 'dashboard');
   }
 
   async function handleLogout() {
@@ -64,6 +65,7 @@ export default function App() {
         {activePage === 'export'      && <ExportData />}
         {activePage === 'analytics'   && <AnalyticsDashboard />}
         {activePage === 'profile'     && <ProfileSettings user={user} />}
+        {activePage === 'partner-home' && <PartnerHome setActivePage={setActivePage} user={user} />}
       </div>
     </div>
   );

@@ -128,6 +128,35 @@ export default function PartnerDirectory({ user }) {
 
   const isAdmin = user?.role === 'admin';
 
+  const handleExportCSV = () => {
+    const headers = ['Organisation', 'Type', 'Objective(s)', 'Focus Area(s)', 'Districts', 'Project Status', 'Projects', 'SLA Status', 'Submission Status', 'Last Submitted', 'Focal Person', 'Email', 'Phone'];
+    const rows = filtered.map(p => [
+      p.name,
+      p.type,
+      p.objectives.join('; '),
+      p.focusAreas.join('; '),
+      p.districts.join('; '),
+      p.projectStatus,
+      p.projects,
+      p.slaStatus,
+      p.submissionStatus,
+      p.lastSubmitted || '',
+      p.focalPerson,
+      p.email,
+      p.phone,
+    ]);
+    const csv = [headers, ...rows]
+      .map(row => row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `partner-directory-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleUpdated = (updatedOrg) => {
     const ui = toUIFormat(updatedOrg);
     setPartners(prev => prev.map(p => p.id === ui.id ? ui : p));
@@ -207,9 +236,11 @@ export default function PartnerDirectory({ user }) {
           <div style={{ fontSize: 11, color: C.textSec }}>{statSummary.total} registered organisations</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button style={{ padding: '7px 12px', background: C.white, color: C.textSec, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>↓ Export CSV</button>
           {isAdmin && (
-            <button onClick={() => setShowAddModal(true)} style={{ padding: '7px 16px', background: C.blue600, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>+ Add partner</button>
+            <>
+              <button onClick={handleExportCSV} style={{ padding: '7px 12px', background: C.white, color: C.textSec, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>↓ Export CSV</button>
+              <button onClick={() => setShowAddModal(true)} style={{ padding: '7px 16px', background: C.blue600, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>+ Add partner</button>
+            </>
           )}
         </div>
       </div>
