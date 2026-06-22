@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from app.core.config import get_settings
-from app.api.routes import auth, submissions, organisations, reminders, gem_reports
+from app.api.routes import auth, submissions, organisations, reminders, gem_reports, analytics
 
 settings = get_settings()
 
@@ -52,6 +52,7 @@ app.include_router(submissions.router, prefix="/api/v1")
 app.include_router(organisations.router, prefix="/api/v1")
 app.include_router(reminders.router, prefix="/api/v1")
 app.include_router(gem_reports.router, prefix="/api/v1")
+app.include_router(analytics.router, prefix="/api/v1")
 
 # ── Serve local uploads in dev ────────────────────────────────────────────────
 if settings.storage_backend == "local":

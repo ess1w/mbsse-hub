@@ -19,12 +19,13 @@ services:
       # Set this to the URL of the deployed API service (update after first deploy)
       - key: VITE_API_URL
         value: https://mbsse-hub-api.onrender.com/api/v1
-      # Apache Superset analytics dashboard embedded in the Analytics tab.
-      # Set to your public Superset URL with ?standalone=2 appended, e.g.:
-      #   https://your-superset-host/superset/dashboard/mbsse-school-safety-hub/?standalone=2
-      # Leave unset to show a setup prompt instead of the iframe.
-      - key: VITE_SUPERSET_URL
-        sync: false
+      # Preset.io embedded analytics (Analytics tab).
+      # Set to your Preset workspace base URL (no trailing slash, no /superset/... path).
+      - key: VITE_PRESET_DOMAIN
+        value: https://83f65675.us2a.app.preset.io
+      # Dashboard ID from the Preset URL (the part after /p/).
+      - key: VITE_PRESET_DASHBOARD_ID
+        value: oBMOvaLJDme
 
   # ── Backend (FastAPI) ────────────────────────────────────────────────────────
   - type: web
@@ -52,3 +53,13 @@ services:
         value: admin@mbsse.gov.sl
       - key: ADMIN_PASSWORD
         generateValue: true
+      # Preset.io embedded analytics — set these manually in the Render dashboard
+      # (never commit API credentials to git)
+      - key: PRESET_API_TOKEN
+        sync: false
+      - key: PRESET_API_SECRET
+        sync: false
+      - key: PRESET_TEAM
+        value: MBSSE
+      - key: PRESET_WORKSPACE
+        value: SRGBV Hub

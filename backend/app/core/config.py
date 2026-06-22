@@ -38,6 +38,14 @@ class Settings(BaseSettings):
     cloudinary_api_key: str = ""
     cloudinary_api_secret: str = ""
 
+    # Preset.io embedded analytics
+    # Generate API key at manage.app.preset.io → user settings → API Keys
+    preset_api_token: str = ""
+    preset_api_secret: str = ""
+    preset_team: str = "MBSSE"
+    preset_workspace: str = "SRGBV Hub"
+    preset_dashboard_id: str = "oBMOvaLJDme"
+
     # Email (SMTP)
     smtp_host: str = ""          # leave blank to use stdout in dev
     smtp_port: int = 587
