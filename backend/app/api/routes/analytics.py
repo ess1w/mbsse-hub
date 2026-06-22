@@ -28,7 +28,7 @@ from app.core.security import decode_token
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 bearer = HTTPBearer()
 
-PRESET_AUTH_URL   = "https://api.app.preset.io/api/v1/auth/"
+PRESET_AUTH_URL   = "https://api.app.preset.io/v1/auth/"
 PRESET_GUEST_URL  = "https://api.app.preset.io/v1/teams/{team}/workspaces/{workspace}/guest-token/"
 
 
