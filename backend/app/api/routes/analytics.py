@@ -76,8 +76,10 @@ async def get_guest_token(
     )
 
     # Step 2 — mint a guest token for the dashboard
+    # Use workspace slug if set, otherwise fall back to display name
+    workspace_id = settings.preset_workspace_slug or settings.preset_workspace
     team      = quote(settings.preset_team, safe="")
-    workspace = quote(settings.preset_workspace, safe="")
+    workspace = quote(workspace_id, safe="")
     url       = PRESET_GUEST_URL.format(team=team, workspace=workspace)
 
     async with httpx.AsyncClient(timeout=10) as client:
@@ -94,6 +96,7 @@ async def get_guest_token(
                     {"type": "dashboard", "id": settings.preset_dashboard_id}
                 ],
                 "rls": [],
+                "enable_drilling": False,
             },
         )
 

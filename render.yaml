@@ -63,3 +63,5 @@ services:
         value: MBSSE
       - key: PRESET_WORKSPACE
         value: SRGBV Hub
+      - key: PRESET_WORKSPACE_SLUG
+        value: 83f65675

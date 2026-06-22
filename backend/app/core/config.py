@@ -43,7 +43,8 @@ class Settings(BaseSettings):
     preset_api_token: str = ""
     preset_api_secret: str = ""
     preset_team: str = "MBSSE"
-    preset_workspace: str = "SRGBV Hub"
+    preset_workspace: str = "SRGBV Hub"      # display name (unused)
+    preset_workspace_slug: str = ""           # URL slug — find in manage.app.preset.io URL
     preset_dashboard_id: str = "oBMOvaLJDme"
 
     # Email (SMTP)

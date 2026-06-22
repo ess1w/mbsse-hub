@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { embedDashboard } from '@superset-ui/embedded-sdk';
+import { embedDashboard } from '@preset-sdk/embedded';
 import { C } from '../../tokens.js';
 import { apiFetch, usesDemoData } from '../../api/client.js';
 
