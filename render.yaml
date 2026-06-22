@@ -25,7 +25,7 @@ services:
         value: https://83f65675.us2a.app.preset.io
       # Dashboard ID from the Preset URL (the part after /p/).
       - key: VITE_PRESET_DASHBOARD_ID
-        value: oBMOvaLJDme
+        value: 7d717db9-a313-4a1e-9df7-53559491b97a
 
   # ── Backend (FastAPI) ────────────────────────────────────────────────────────
   - type: web

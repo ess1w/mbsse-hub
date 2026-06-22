@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     preset_team: str = "efeed616"
     preset_workspace: str = "SRGBV Hub"      # display name (unused)
     preset_workspace_slug: str = ""           # URL slug — find in manage.app.preset.io URL
-    preset_dashboard_id: str = "oBMOvaLJDme"
+    preset_dashboard_id: str = "7d717db9-a313-4a1e-9df7-53559491b97a"
 
     # Email (SMTP)
     smtp_host: str = ""          # leave blank to use stdout in dev
