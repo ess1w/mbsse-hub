@@ -107,3 +107,53 @@ async def get_guest_token(
         )
 
     return {"token": res.json()["payload"]["token"]}
+
+
+@router.get("/preset-workspaces")
+async def list_preset_workspaces(
+    creds: HTTPAuthorizationCredentials = Depends(bearer),
+):
+    """Admin-only debug endpoint — returns Preset team + workspace slugs.
+
+    Call once to identify the correct PRESET_TEAM and PRESET_WORKSPACE_SLUG
+    values, then remove or disable this endpoint.
+    """
+    payload = decode_token(creds.credentials)
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    settings = get_settings()
+    if not settings.preset_api_token or not settings.preset_api_secret:
+        raise HTTPException(status_code=503, detail="Preset credentials not configured")
+
+    access_token = await _get_preset_access_token(
+        settings.preset_api_token, settings.preset_api_secret
+    )
+    headers = {"Authorization": f"Bearer {access_token}"}
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        teams_res = await client.get("https://api.app.preset.io/v1/teams/", headers=headers)
+
+    if teams_res.status_code != 200:
+        raise HTTPException(status_code=502, detail=f"Preset teams request failed: {teams_res.text[:300]}")
+
+    teams = teams_res.json().get("payload", [])
+    result = []
+    async with httpx.AsyncClient(timeout=10) as client:
+        for team in teams:
+            team_slug = team.get("name") or team.get("slug") or team.get("id")
+            ws_res = await client.get(
+                f"https://api.app.preset.io/v1/teams/{team_slug}/workspaces/",
+                headers=headers,
+            )
+            workspaces = ws_res.json().get("payload", []) if ws_res.status_code == 200 else []
+            result.append({
+                "team_title": team.get("title"),
+                "team_slug":  team_slug,
+                "workspaces": [
+                    {"title": w.get("title"), "slug": w.get("name") or w.get("slug") or w.get("id")}
+                    for w in workspaces
+                ],
+            })
+
+    return result
