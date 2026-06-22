@@ -60,7 +60,7 @@ services:
       - key: PRESET_API_SECRET
         sync: false
       - key: PRESET_TEAM
-        value: MBSSE
+        value: efeed616
       - key: PRESET_WORKSPACE
         value: SRGBV Hub
       - key: PRESET_WORKSPACE_SLUG

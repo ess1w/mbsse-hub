@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     # Generate API key at manage.app.preset.io → user settings → API Keys
     preset_api_token: str = ""
     preset_api_secret: str = ""
-    preset_team: str = "MBSSE"
+    preset_team: str = "efeed616"
     preset_workspace: str = "SRGBV Hub"      # display name (unused)
     preset_workspace_slug: str = ""           # URL slug — find in manage.app.preset.io URL
     preset_dashboard_id: str = "oBMOvaLJDme"
