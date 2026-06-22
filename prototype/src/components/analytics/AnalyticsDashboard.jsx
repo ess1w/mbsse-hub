@@ -108,13 +108,25 @@ export default function AnalyticsDashboard() {
         />
       )}
 
+      {/* Force the SDK-generated iframe to fill its container */}
+      <style>{`
+        #preset-mount iframe {
+          width: 100% !important;
+          height: 100% !important;
+          border: none !important;
+          flex: 1;
+        }
+      `}</style>
+
       {/* SDK mount point — always in the DOM so the SDK can attach its iframe */}
       <div
+        id="preset-mount"
         ref={mountRef}
         style={{
           flex: 1,
           display: status === 'ready' || status === 'loading' ? 'flex' : 'none',
           flexDirection: 'column',
+          minHeight: 0,
         }}
       />
     </div>
