@@ -1234,7 +1234,7 @@ export default function ReportingForm({ user, setActivePage }) {
                   <div style={g3}>
                     {fl('Submitted by', (
                       <div style={{ height: 33, border: `1px solid ${C.border}`, borderRadius: 5, padding: '0 10px', fontSize: 11, color: C.text, display: 'flex', alignItems: 'center', background: C.white }}>
-                        Salaymatu Kamara <span style={{ fontSize: 10, padding: '2px 7px', background: C.blueBg, color: C.blue900, border: `1px solid ${C.blue100}`, borderRadius: 3, marginLeft: 6 }}>Auto</span>
+                        {user?.full_name ?? user?.email ?? '—'} <span style={{ fontSize: 10, padding: '2px 7px', background: C.blueBg, color: C.blue900, border: `1px solid ${C.blue100}`, borderRadius: 3, marginLeft: 6 }}>Auto</span>
                       </div>
                     ))}
                     {fl('Verified by', <div style={{ height: 33, border: `1px solid ${C.border}`, borderRadius: 5, padding: '0 10px', fontSize: 11, color: C.textMuted, display: 'flex', alignItems: 'center', background: C.white }}>Filled by Admin after review...</div>)}
