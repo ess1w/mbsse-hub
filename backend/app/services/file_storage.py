@@ -22,12 +22,17 @@ async def store_file(
     submission_id: str,
     file_kind: str,
     mime_type: str = "application/octet-stream",
+    prefix: str = "submissions",
 ) -> tuple[str, str]:
     """
     Returns (stored_key, public_url_or_path).
     stored_key is the Drive file ID for gdrive, S3 key for s3, or local path for local.
+
+    `prefix` is the top-level storage folder (e.g. "submissions" for report
+    evidence, "sla" for organisation SLA documents). For SLA uploads the caller
+    passes the org id as `submission_id`.
     """
-    key = f"submissions/{submission_id}/{file_kind}/{uuid.uuid4()}{_ext(original_filename)}"
+    key = f"{prefix}/{submission_id}/{file_kind}/{uuid.uuid4()}{_ext(original_filename)}"
 
     if settings.storage_backend == "cloudinary":
         return _store_cloudinary(content, original_filename, file_kind)

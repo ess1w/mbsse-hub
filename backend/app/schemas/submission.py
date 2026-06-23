@@ -209,13 +209,95 @@ class SubmissionAdminPatch(BaseModel):
     review_notes: str | None = None
 
 
+# ── Activity / output-indicator / training payloads (Sections C–E) ────────────
+
+class OutputIndicatorIn(BaseModel):
+    """All Section E numeric outputs for one (activity, district)."""
+    district_name: str = ""
+
+    # Schools by level
+    schools_pre_primary: int = 0
+    schools_primary: int = 0
+    schools_jss: int = 0
+    schools_sss: int = 0
+    # School-level SRGBV mechanisms
+    schools_with_focal_person: int = 0
+    schools_with_reporting_protocol: int = 0
+    schools_with_referral_pathway: int = 0
+    schools_held_schoolwide_campaign: int = 0
+    schools_held_peer_led_session: int = 0
+    schools_with_safe_space: int = 0
+    # Students — in-school
+    students_inschool_f: int = 0
+    students_inschool_m: int = 0
+    students_inschool_age_10_14: int = 0
+    students_inschool_age_15_19: int = 0
+    students_inschool_age_under10: int = 0
+    # Students — out-of-school
+    students_oos_f: int = 0
+    students_oos_m: int = 0
+    students_oos_age_10_14: int = 0
+    students_oos_age_15_19: int = 0
+    # Disability & vulnerable groups
+    students_disability_f: int = 0
+    students_disability_m: int = 0
+    pregnant_girls: int = 0
+    teenage_mothers: int = 0
+    teenage_fathers: int = 0
+    # Engagement
+    students_used_reporting_mechanism: int = 0
+    students_confident_reporting: int = 0
+    # Teacher / official totals (per-focus-area detail in `training`)
+    teachers_f: int = 0
+    teachers_m: int = 0
+    teachers_demonstrated_grp: int = 0
+    district_officials_f: int = 0
+    district_officials_m: int = 0
+    central_officials_f: int = 0
+    central_officials_m: int = 0
+    # Community / policy
+    community_members_f: int = 0
+    community_members_m: int = 0
+    community_sessions: int = 0
+    policy_dialogue_events: int = 0
+
+
+class TrainingRowIn(BaseModel):
+    """One row of teacher/official training, by focus area + district + cadre (#6)."""
+    district_name: str = ""
+    focus_area: str
+    cadre: Literal["teacher", "district_official", "central_official"]
+    female: int = 0
+    male: int = 0
+
+
+class ActivityIn(BaseModel):
+    """One activity from the Section C/D/E repeater."""
+    focus_areas: list[str] = Field(default_factory=list)
+    focus_area_other: str | None = None
+    objectives: list[str] = Field(default_factory=list)
+    tactics: list[str] = Field(default_factory=list)
+    districts: list[str] = Field(default_factory=list)
+    activity_type: str | None = None
+    intervention_levels: list[str] = Field(default_factory=list)
+    activity_title: str | None = Field(None, max_length=300)
+    description: str | None = None
+    planned_vs_actual: str | None = None
+    implementation_status: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    indicators: list[OutputIndicatorIn] = Field(default_factory=list)
+    training: list[TrainingRowIn] = Field(default_factory=list)
+
+
 # ── Response schema ───────────────────────────────────────────────────────────
 
 class SubmissionReportIn(BaseModel):
     """Consolidated submission-level payload from the Reporting Form.
 
     The active reporting period and the org's project are resolved server-side,
-    so the client only sends the narrative/quantitative submission fields.
+    so the client sends the narrative/quantitative submission fields plus the
+    activities (with nested per-district indicators and training rows).
     """
     # Optional — admin may submit on behalf of an org; partners use their own.
     org_id: UUID | None = None
@@ -223,6 +305,12 @@ class SubmissionReportIn(BaseModel):
     # Optional — partner can provide a project title; if omitted the existing
     # project for the org is used (or a default one is created).
     project_title: str | None = None
+
+    # Section B — geographic coverage (districts auto-derived from activities)
+    districts: list[str] = Field(default_factory=list)
+
+    # Sections C–E — activities with nested per-district indicators + training
+    activities: list[ActivityIn] = Field(default_factory=list)
 
     # Section F — results narrative
     key_results: str | None = None

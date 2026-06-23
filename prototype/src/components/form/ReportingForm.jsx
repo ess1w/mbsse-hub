@@ -15,12 +15,39 @@ export default function ReportingForm({ user, setActivePage }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [completedPages, setCompletedPages] = useState([1]);
   const [completedSections, setCompletedSections] = useState(COMPLETED_INIT);
-  // Activity template for multi-activity repeater (Section C/D)
+  // Section E numeric indicator fields (captured per activity × district)
+  const INDICATOR_KEYS = [
+    'schools_pre_primary', 'schools_primary', 'schools_jss', 'schools_sss',
+    'schools_with_focal_person', 'schools_with_reporting_protocol',
+    'schools_with_referral_pathway', 'schools_held_schoolwide_campaign',
+    'schools_held_peer_led_session', 'schools_with_safe_space',
+    'students_inschool_f', 'students_inschool_m',
+    'students_inschool_age_10_14', 'students_inschool_age_15_19', 'students_inschool_age_under10',
+    'students_oos_f', 'students_oos_m', 'students_oos_age_10_14', 'students_oos_age_15_19',
+    'students_disability_f', 'students_disability_m',
+    'pregnant_girls', 'teenage_mothers', 'teenage_fathers',
+    'students_used_reporting_mechanism', 'students_confident_reporting',
+    'teachers_demonstrated_grp',
+    'community_members_f', 'community_members_m',
+    'community_sessions', 'policy_dialogue_events',
+  ];
+  const blankIndicators = () => Object.fromEntries(INDICATOR_KEYS.map(k => [k, 0]));
+
+  // Cadres trained, disaggregated by focus area (Section E #6)
+  const TRAINING_CADRES = [
+    { key: 'teacher',           label: 'Teachers / school staff trained' },
+    { key: 'district_official', label: 'District officials trained (DDs, SQAM, etc.)' },
+    { key: 'central_official',  label: 'Central officials trained (MBSSE, TSC, etc.)' },
+  ];
+
+  // Activity template for multi-activity repeater (Section C/D/E)
   const newActivity = () => ({
     _id: Date.now(),
     focusAreas: [],
+    focusAreaOther: '',
     objectives: [],
     tactics: [],
+    districts: [],
     activityType: '',
     interventionLevels: [],
     activityTitle: '',
@@ -29,27 +56,19 @@ export default function ReportingForm({ user, setActivePage }) {
     plannedVsActual: '',
     startDate: '',
     endDate: '',
-    // Section E — output indicators per activity (data dict 5.7)
-    schools_pre_primary: 0, schools_primary: 0, schools_jss: 0, schools_sss: 0,
-    schools_with_focal_person: 0, schools_with_reporting_protocol: 0,
-    schools_with_referral_pathway: 0, schools_held_schoolwide_campaign: 0,
-    schools_held_peer_led_session: 0, schools_with_safe_space: 0,
-    students_inschool_f: 0, students_inschool_m: 0,
-    students_inschool_age_10_14: 0, students_inschool_age_15_19: 0, students_inschool_age_under10: 0,
-    students_oos_f: 0, students_oos_m: 0,
-    students_oos_age_10_14: 0, students_oos_age_15_19: 0,
-    students_disability_f: 0, students_disability_m: 0,
-    pregnant_girls: 0, teenage_mothers: 0,
-    students_used_reporting_mechanism: 0, students_confident_reporting: 0,
-    teachers_f: 0, teachers_m: 0, teachers_demonstrated_grp: 0,
-    district_officials_f: 0, district_officials_m: 0,
-    central_officials_f: 0, central_officials_m: 0,
-    community_members_f: 0, community_members_m: 0,
-    community_sessions: 0, policy_dialogue_events: 0,
+    // Section E — per-district output indicators: { [district]: {…INDICATOR_KEYS} }
+    ind: {},
+    // Section E — per-district, per-focus training: { [district]: { [focusArea]: { teacher_f, … } } }
+    training: {},
   });
+
+  // The district keys an activity's Section E is entered against: its selected
+  // districts, or a single blank key '' when none are chosen yet.
+  const indDistrictsOf = (act) => (act.districts && act.districts.length ? act.districts : ['']);
 
   const [activities, setActivities] = useState([newActivity()]);
   const [activeActivityIdx, setActiveActivityIdx] = useState(0);
+  const [activeDistrictIdx, setActiveDistrictIdx] = useState(0);   // Section E per-district tab
 
   const [form, setForm] = useState({
     keyResults: '',
@@ -72,11 +91,8 @@ export default function ReportingForm({ user, setActivePage }) {
     plannedActivities: '',
     supportNeeded: '',
     project: '',
-    district: 'Bo',
-    chiefdom: 'Valunia',
-    community: 'Gondama',
-    school: 'Gondama Secondary School',
-    emisCode: '10042',
+    chiefdom: '',
+    community: '',
   });
 
   // Helpers for per-activity field updates
@@ -87,6 +103,29 @@ export default function ReportingForm({ user, setActivePage }) {
       if (i !== idx) return a;
       return { ...a, [key]: a[key].includes(val) ? a[key].filter(v => v !== val) : [...a[key], val] };
     }));
+  // Section E — set a numeric indicator for a given activity × district
+  const setIndField = (idx, district, key, val) =>
+    setActivities(prev => prev.map((a, i) => {
+      if (i !== idx) return a;
+      const ind = { ...(a.ind || {}) };
+      ind[district] = { ...blankIndicators(), ...(ind[district] || {}), [key]: val };
+      return { ...a, ind };
+    }));
+  const getInd = (act, district, key) => act.ind?.[district]?.[key] ?? 0;
+  // Section E — set a training count for activity × district × focus area × cadre × gender
+  const setTrainingField = (idx, district, focusArea, cadre, gender, val) =>
+    setActivities(prev => prev.map((a, i) => {
+      if (i !== idx) return a;
+      const training = { ...(a.training || {}) };
+      const dist = { ...(training[district] || {}) };
+      const fa = { ...(dist[focusArea] || {}) };
+      fa[`${cadre}_${gender}`] = val;
+      dist[focusArea] = fa;
+      training[district] = dist;
+      return { ...a, training };
+    }));
+  const getTraining = (act, district, focusArea, cadre, gender) =>
+    act.training?.[district]?.[focusArea]?.[`${cadre}_${gender}`] ?? 0;
   const addActivity = () => {
     const next = newActivity();
     setActivities(prev => [...prev, next]);
@@ -190,9 +229,66 @@ export default function ReportingForm({ user, setActivePage }) {
       return;
     }
 
+    // Section B districts: union of every activity's selected districts.
+    const coverageDistricts = [...new Set(activities.flatMap(a => a.districts || []))];
+
+    // Build activity payloads with nested per-district indicators + training (#2–#6)
+    const activityPayloads = activities.map(a => {
+      const dists = indDistrictsOf(a);
+      const indicators = dists.map(d => {
+        const base = { ...blankIndicators(), ...(a.ind?.[d] || {}) };
+        // Roll per-focus training up into the district's teacher/official totals
+        const totals = {
+          teachers_f: 0, teachers_m: 0,
+          district_officials_f: 0, district_officials_m: 0,
+          central_officials_f: 0, central_officials_m: 0,
+        };
+        (a.focusAreas || []).forEach(fa => {
+          totals.teachers_f          += Number(getTraining(a, d, fa, 'teacher', 'f')) || 0;
+          totals.teachers_m          += Number(getTraining(a, d, fa, 'teacher', 'm')) || 0;
+          totals.district_officials_f += Number(getTraining(a, d, fa, 'district_official', 'f')) || 0;
+          totals.district_officials_m += Number(getTraining(a, d, fa, 'district_official', 'm')) || 0;
+          totals.central_officials_f += Number(getTraining(a, d, fa, 'central_official', 'f')) || 0;
+          totals.central_officials_m += Number(getTraining(a, d, fa, 'central_official', 'm')) || 0;
+        });
+        return { district_name: d, ...base, ...totals };
+      });
+      const training = [];
+      dists.forEach(d => {
+        (a.focusAreas || []).forEach(fa => {
+          TRAINING_CADRES.forEach(({ key }) => {
+            const female = Number(getTraining(a, d, fa, key, 'f')) || 0;
+            const male   = Number(getTraining(a, d, fa, key, 'm')) || 0;
+            if (female || male) {
+              training.push({ district_name: d, focus_area: fa, cadre: key, female, male });
+            }
+          });
+        });
+      });
+      return {
+        focus_areas: a.focusAreas || [],
+        focus_area_other: a.focusAreas?.includes('8. Other') ? (a.focusAreaOther || null) : null,
+        objectives: a.objectives || [],
+        tactics: a.tactics || [],
+        districts: a.districts || [],
+        activity_type: a.activityType || null,
+        intervention_levels: a.interventionLevels || [],
+        activity_title: a.activityTitle || null,
+        description: a.description || null,
+        planned_vs_actual: a.plannedVsActual || null,
+        implementation_status: a.implementationStatus || null,
+        start_date: a.startDate || null,
+        end_date: a.endDate || null,
+        indicators,
+        training,
+      };
+    });
+
     // Map form state → submission-level API payload
     const payload = {
       project_title:         form.project || null,
+      districts:             coverageDistricts,
+      activities:            activityPayloads,
       key_results:           form.keyResults || null,
       observed_changes:      form.observedChanges || null,
       early_outcomes:        form.earlyOutcomes || null,
@@ -248,6 +344,7 @@ export default function ReportingForm({ user, setActivePage }) {
     setCompletedSections(COMPLETED_INIT);
     setActivities([newActivity()]);
     setActiveActivityIdx(0);
+    setActiveDistrictIdx(0);
     setSubmitted(false);
     setUploadedPhotos([]);
     setUploadedDocs([]);
@@ -260,19 +357,13 @@ export default function ReportingForm({ user, setActivePage }) {
       challenges: '', risks: '', mitigations: '',
       safeguardingCases: 'No', numCases: 0, referralPathway: '', actionTaken: '',
       plannedActivities: '', supportNeeded: '',
-      district: 'Bo', chiefdom: 'Valunia', community: 'Gondama',
-      school: 'Gondama Secondary School', emisCode: '10042',
+      chiefdom: '', community: '',
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setActivePage('partner-home');
   };
 
   const setField = (key, val) => setForm(f => ({ ...f, [key]: val }));
-  const toggleFocusArea = (area) => setField('focusAreas',
-    form.focusAreas.includes(area)
-      ? form.focusAreas.filter(a => a !== area)
-      : [...form.focusAreas, area]
-  );
 
   const inp = (key, placeholder, type = 'text') => (
     <input value={form[key]} onChange={e => setField(key, type === 'number' ? Number(e.target.value) : e.target.value)}
@@ -530,14 +621,28 @@ export default function ReportingForm({ user, setActivePage }) {
                 {/* B — Geographic */}
                 {section('B', completedSections.B ? C.green700 : C.blue600, <>
                   <SecHeader id="B" label="Geographic coverage" required done={completedSections.B} />
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                    {fl('District', sel('district', DISTRICTS, null))}
-                    {fl('Chiefdom', inp('chiefdom', 'Chiefdom name…'))}
-                    {fl('Community / Village', inp('community', 'Community or village…'))}
-                    {fl('School name', inp('school', 'School name…'))}
-                    {fl('EMIS code', inp('emisCode', 'EMIS code…'))}
-                    {fl('GPS coordinates', <div style={{ fontSize: 11, color: C.textMuted, paddingTop: 4 }}>Not captured</div>)}
-                  </div>
+                  {(() => {
+                    const coverage = [...new Set(activities.flatMap(a => a.districts || []))];
+                    return (
+                      <>
+                        {fl('District(s)', (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, padding: '6px 8px', border: `1px solid ${C.border}`, borderRadius: 5, minHeight: 34, background: '#f8fafc' }}>
+                            {coverage.length === 0
+                              ? <span style={{ fontSize: 11, color: C.textMuted }}>Auto-derived from the district(s) you select for each activity in Section C.</span>
+                              : coverage.map(d => (
+                                  <span key={d} style={{ fontSize: 10, padding: '3px 8px', borderRadius: 3, background: C.blue600, color: C.white }}>{d}</span>
+                                ))
+                            }
+                          </div>
+                        ), 'auto-derived from Section C')}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginTop: 10 }}>
+                          {fl('Chiefdom', inp('chiefdom', 'Chiefdom name…'))}
+                          {fl('Community / Village', inp('community', 'Community or village…'))}
+                          {fl('GPS coordinates', <div style={{ fontSize: 11, color: C.textMuted, paddingTop: 4 }}>Not captured</div>)}
+                        </div>
+                      </>
+                    );
+                  })()}
                   {!completedSections.B && (
                     <button onClick={() => setCompletedSections(s => ({ ...s, B: true }))}
                       style={{ marginTop: 10, padding: '6px 14px', fontSize: 11, borderRadius: 5, border: `1px solid ${C.blue600}`, background: C.blueBg, color: C.blue600, cursor: 'pointer', fontWeight: 500 }}>
@@ -593,7 +698,13 @@ export default function ReportingForm({ user, setActivePage }) {
                     );
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {fl('District(s) *', multiChip('districts', DISTRICTS))}
                         {fl('Focus area(s) *', multiChip('focusAreas', FOCUS_AREAS))}
+                        {act.focusAreas.includes('8. Other') && fl('Please specify "Other" focus area *', (
+                          <input value={act.focusAreaOther} onChange={e => setActivityField(idx, 'focusAreaOther', e.target.value)}
+                            placeholder="Describe the other focus area…"
+                            style={{ width: '100%', height: 33, border: `1px solid ${C.border}`, borderRadius: 5, padding: '0 10px', fontSize: 11, boxSizing: 'border-box' }} />
+                        ))}
                         <div style={g2}>
                           {fl('Objective(s) *', multiChip('objectives', FORM_OBJECTIVES.map(o => o.full)))}
                           {fl('Tactic(s) *', multiChip('tactics', (TACTICS || FORM_OBJECTIVES.flatMap(o => o.tactics || [])).filter((v, i, a) => a.indexOf(v) === i)))}
@@ -666,13 +777,13 @@ export default function ReportingForm({ user, setActivePage }) {
                 {/* E — Output Indicators (expanded per data dictionary Section 5.7, v3 wireframe) */}
                 {section('E', C.blue600, <>
                   <SecHeader id="E" label="Output indicators" required />
-                  {infoBanner('Enter totals for this reporting period. Sections apply per activity — use the activity selector above to switch activities.')}
+                  {infoBanner('Enter totals for this reporting period. Output indicators are captured per activity, and per district when an activity covers more than one district — use the selectors below to switch.')}
 
                   {/* Activity selector for Section E */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <span style={{ fontSize: 11, color: C.textSec, fontWeight: 500 }}>Entering for:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 11, color: C.textSec, fontWeight: 500 }}>Activity:</span>
                     {activities.map((act, idx) => (
-                      <button key={act._id} onClick={() => setActiveActivityIdx(idx)} style={{
+                      <button key={act._id} onClick={() => { setActiveActivityIdx(idx); setActiveDistrictIdx(0); }} style={{
                         padding: '4px 10px', fontSize: 10, borderRadius: 4, border: `1px solid ${activeActivityIdx === idx ? C.blue600 : C.border}`,
                         background: activeActivityIdx === idx ? C.blue600 : C.white,
                         color: activeActivityIdx === idx ? C.white : C.textSec, cursor: 'pointer',
@@ -683,20 +794,24 @@ export default function ReportingForm({ user, setActivePage }) {
                   {activities[activeActivityIdx] && (() => {
                     const act = activities[activeActivityIdx];
                     const idx = activeActivityIdx;
+                    const dists = indDistrictsOf(act);
+                    const dIdx = Math.min(activeDistrictIdx, dists.length - 1);
+                    const district = dists[dIdx];
+                    const multiDistrict = dists.length > 1;
 
-                    // Card-style number input (label on top, input on bottom) — wireframe pattern
+                    // Card-style number input (per active district)
                     const numCard = (label, key) => (
                       <div style={{ border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 10px', background: '#f8fafc' }}>
                         <div style={{ fontSize: 10, color: C.textSec, fontWeight: 500, marginBottom: 6, lineHeight: 1.3 }}>{label}</div>
-                        <input type="number" min="0" value={act[key]}
-                          onChange={e => setActivityField(idx, key, parseInt(e.target.value) || 0)}
+                        <input type="number" min="0" value={getInd(act, district, key)}
+                          onChange={e => setIndField(idx, district, key, parseInt(e.target.value) || 0)}
                           style={{ width: '100%', height: 32, border: `1px solid ${C.border}`, borderRadius: 4, padding: '0 8px', fontSize: 13, textAlign: 'center', boxSizing: 'border-box', color: C.text }} />
                       </div>
                     );
 
-                    // Computed total card (read-only, shows sum of two keys)
+                    // Computed total card (read-only, shows sum of two keys for the active district)
                     const totalCard = (label, fKey, mKey) => {
-                      const total = (act[fKey] || 0) + (act[mKey] || 0);
+                      const total = (getInd(act, district, fKey) || 0) + (getInd(act, district, mKey) || 0);
                       return (
                         <div style={{ border: `1px solid ${C.blue100}`, borderRadius: 6, padding: '8px 10px', background: C.blueBg }}>
                           <div style={{ fontSize: 10, color: C.textSec, fontWeight: 500, marginBottom: 6, lineHeight: 1.3 }}>{label}</div>
@@ -705,12 +820,12 @@ export default function ReportingForm({ user, setActivePage }) {
                       );
                     };
 
-                    // Row-style number input (label left, input right) for mechanisms / engagement
+                    // Row-style number input (per active district)
                     const numRow = (label, key) => (
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', borderRadius: 4, background: '#f8fafc', fontSize: 11, border: `1px solid ${C.borderLight}` }}>
                         <span style={{ color: C.textSec, flex: 1, paddingRight: 8 }}>{label}</span>
-                        <input type="number" min="0" value={act[key]}
-                          onChange={e => setActivityField(idx, key, parseInt(e.target.value) || 0)}
+                        <input type="number" min="0" value={getInd(act, district, key)}
+                          onChange={e => setIndField(idx, district, key, parseInt(e.target.value) || 0)}
                           style={{ width: 64, height: 26, border: `1px solid ${C.border}`, borderRadius: 4, padding: '0 6px', fontSize: 11, textAlign: 'right', flexShrink: 0, color: C.text }} />
                       </div>
                     );
@@ -719,8 +834,56 @@ export default function ReportingForm({ user, setActivePage }) {
                       <div style={{ fontSize: 11, fontWeight: 600, color: C.textSec, marginBottom: 8, paddingBottom: 4, borderBottom: `1px solid ${C.border}` }}>{text}</div>
                     );
 
+                    // Training input cell (per district × focus area × cadre × gender)
+                    const trainInput = (fa, cadreKey, gender) => (
+                      <input type="number" min="0" value={getTraining(act, district, fa, cadreKey, gender)}
+                        onChange={e => setTrainingField(idx, district, fa, cadreKey, gender, parseInt(e.target.value) || 0)}
+                        style={{ width: 60, height: 26, border: `1px solid ${C.border}`, borderRadius: 4, padding: '0 6px', fontSize: 11, textAlign: 'right', color: C.text }} />
+                    );
+
+                    // Per-cadre table: one row per focus area selected for this activity (#6)
+                    const trainingBlock = (cadre) => (
+                      <div style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: 10, color: C.textMuted, fontWeight: 600, marginBottom: 5 }}>{cadre.label}</div>
+                        {act.focusAreas.length === 0
+                          ? <div style={{ fontSize: 10, color: C.textMuted, fontStyle: 'italic', padding: '4px 0' }}>Select one or more focus areas in Section C to enter training figures.</div>
+                          : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 64px 64px', gap: 6, fontSize: 9, color: C.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', padding: '0 2px' }}>
+                                <span>Focus area</span><span style={{ textAlign: 'right' }}>Female</span><span style={{ textAlign: 'right' }}>Male</span>
+                              </div>
+                              {act.focusAreas.map(fa => (
+                                <div key={fa} style={{ display: 'grid', gridTemplateColumns: '1fr 64px 64px', gap: 6, alignItems: 'center', padding: '4px 8px', borderRadius: 4, background: '#f8fafc', border: `1px solid ${C.borderLight}` }}>
+                                  <span style={{ fontSize: 11, color: C.textSec }}>{fa === '8. Other' && act.focusAreaOther ? act.focusAreaOther : fa}</span>
+                                  {trainInput(fa, cadre.key, 'f')}
+                                  {trainInput(fa, cadre.key, 'm')}
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        }
+                      </div>
+                    );
+
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+                        {/* District selector — only when an activity covers >1 district (#4) */}
+                        {multiDistrict && (
+                          <div style={{ background: C.blueBg, border: `1px solid ${C.blue100}`, borderRadius: 6, padding: '8px 10px' }}>
+                            <div style={{ fontSize: 10, color: C.blue900, fontWeight: 600, marginBottom: 6 }}>Entering output indicators for district:</div>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                              {dists.map((d, i) => (
+                                <button key={d} onClick={() => setActiveDistrictIdx(i)} style={{
+                                  padding: '4px 12px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
+                                  border: `1px solid ${i === dIdx ? C.blue600 : C.border}`,
+                                  background: i === dIdx ? C.blue600 : C.white,
+                                  color: i === dIdx ? C.white : C.textSec, fontWeight: i === dIdx ? 600 : 400,
+                                }}>{d}</button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Schools by level — 4-col card grid */}
                         <div>
@@ -737,12 +900,12 @@ export default function ReportingForm({ user, setActivePage }) {
                         <div>
                           {subHead('School-level SRGBV prevention mechanisms')}
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
-                            {numRow('# schools with a trained SRGBV focal person', 'schools_with_focal_person')}
-                            {numRow('# schools with SRGBV reporting protocol', 'schools_with_reporting_protocol')}
-                            {numRow('# schools with SRGBV referral pathway', 'schools_with_referral_pathway')}
-                            {numRow('# schools that held a school-wide SRGBV awareness campaign', 'schools_held_schoolwide_campaign')}
-                            {numRow('# schools that held a peer-led SRGBV awareness session', 'schools_held_peer_led_session')}
-                            {numRow('# schools with a designated, student-accessible safe space', 'schools_with_safe_space')}
+                            {numRow('# of schools where a SRGBV focal person was trained', 'schools_with_focal_person')}
+                            {numRow('# of schools where we established a SRGBV reporting protocol', 'schools_with_reporting_protocol')}
+                            {numRow('# of schools where we established a SRGBV referral pathway', 'schools_with_referral_pathway')}
+                            {numRow('# of schools where we held a school-wide SRGBV awareness campaign', 'schools_held_schoolwide_campaign')}
+                            {numRow('# of schools where we held a peer-led SRGBV awareness session', 'schools_held_peer_led_session')}
+                            {numRow('# of schools we helped establish a designated, student-accessible safe space', 'schools_with_safe_space')}
                           </div>
                           {/* Blue KPI info box */}
                           <div style={{ marginTop: 8, background: C.blueBg, border: `1px solid ${C.blue100}`, borderRadius: 5, padding: '7px 12px', fontSize: 10, color: C.blue900, display: 'flex', alignItems: 'flex-start', gap: 7 }}>
@@ -784,14 +947,15 @@ export default function ReportingForm({ user, setActivePage }) {
                             </div>
                           </div>
 
-                          {/* Disability & vulnerable — 4-col card grid */}
+                          {/* Disability & vulnerable — card grid */}
                           <div style={{ marginTop: 10 }}>
                             <div style={{ fontSize: 10, color: C.textMuted, fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Disability &amp; vulnerable groups</div>
-                            <div style={g4}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: 10 }}>
                               {numCard('Students w/ disability — female', 'students_disability_f')}
                               {numCard('Students w/ disability — male', 'students_disability_m')}
                               {numCard('Pregnant girls reached', 'pregnant_girls')}
                               {numCard('Teenage mothers reached', 'teenage_mothers')}
+                              {numCard('Teenage fathers reached', 'teenage_fathers')}
                             </div>
                           </div>
                         </div>
@@ -805,38 +969,18 @@ export default function ReportingForm({ user, setActivePage }) {
                           </div>
                         </div>
 
-                        {/* Teachers — 3-col Total/F/M + full-width GRP row */}
+                        {/* Teachers / school staff trained — by focus area (#6) */}
                         <div>
-                          {subHead('Teachers / school staff trained')}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 8 }}>
-                            {totalCard('Total trained', 'teachers_f', 'teachers_m')}
-                            {numCard('Female', 'teachers_f')}
-                            {numCard('Male', 'teachers_m')}
-                          </div>
+                          {subHead('Teachers / school staff trained — by focus area')}
+                          {trainingBlock(TRAINING_CADRES[0])}
                           {numRow('# demonstrating non-violent, gender-responsive practices (GRP)', 'teachers_demonstrated_grp')}
                         </div>
 
-                        {/* Government officials — district then central, each 3-col */}
+                        {/* Government officials trained — by focus area (#6) */}
                         <div>
-                          {subHead('Government officials trained')}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            <div>
-                              <div style={{ fontSize: 10, color: C.textMuted, fontWeight: 500, marginBottom: 5 }}>District officials (DDs, SQAM, etc.)</div>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
-                                {totalCard('Total', 'district_officials_f', 'district_officials_m')}
-                                {numCard('Female', 'district_officials_f')}
-                                {numCard('Male', 'district_officials_m')}
-                              </div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize: 10, color: C.textMuted, fontWeight: 500, marginBottom: 5 }}>Central officials (MBSSE, TSC, etc.)</div>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
-                                {totalCard('Total', 'central_officials_f', 'central_officials_m')}
-                                {numCard('Female', 'central_officials_f')}
-                                {numCard('Male', 'central_officials_m')}
-                              </div>
-                            </div>
-                          </div>
+                          {subHead('Government officials trained — by focus area')}
+                          {trainingBlock(TRAINING_CADRES[1])}
+                          {trainingBlock(TRAINING_CADRES[2])}
                         </div>
 
                         {/* Community members — 3-col Total/F/M */}
@@ -868,7 +1012,7 @@ export default function ReportingForm({ user, setActivePage }) {
 
                 {/* F — Outcome Snapshot */}
                 {section('F', C.textMuted, <>
-                  <SecHeader id="F" label="Outcome / result snapshot" />
+                  <SecHeader id="F" label={`Outcome / result snapshot${form.project ? ` — ${form.project}` : ''}`} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {fl('Key results this period *', textarea('keyResults', 'What were the main results or achievements this period?...'))}
                     <div style={g2}>

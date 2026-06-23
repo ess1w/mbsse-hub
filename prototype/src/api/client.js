@@ -233,3 +233,20 @@ export const submissionsApi = {
     });
   },
 };
+
+// ── SLA documents API calls ───────────────────────────────────────────────────
+
+export const slaApi = {
+  list: (orgId) => apiFetch(`/organisations/${orgId}/sla`),
+  upload: (orgId, file) => {
+    const form = new FormData();
+    form.append('upload', file);
+    return apiFetch(`/organisations/${orgId}/sla`, { method: 'POST', body: form });
+  },
+  /** Admin approve / reject. status: 'approved' | 'rejected' */
+  review: (docId, status, notes) =>
+    apiFetch(`/sla-documents/${docId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, review_notes: notes || null }),
+    }),
+};

@@ -6,8 +6,9 @@ from app.models.user import User
 from app.models.token_blacklist import TokenBlacklist
 from app.models.project import Project
 from app.models.reporting_period import ReportingPeriod
-from app.models.submission import Submission, SubmissionLocation, Activity, OutputIndicators
+from app.models.submission import Submission, SubmissionLocation, Activity, OutputIndicators, TrainingByFocusArea
 from app.models.uploaded_file import UploadedFile
+from app.models.sla_document import SlaDocument
 from app.models.reminder import Reminder
 from app.models.audit_log import AuditLog
 
@@ -18,8 +19,9 @@ __all__ = [
     "User", "TokenBlacklist",
     "Project",
     "ReportingPeriod",
-    "Submission", "SubmissionLocation", "Activity", "OutputIndicators",
+    "Submission", "SubmissionLocation", "Activity", "OutputIndicators", "TrainingByFocusArea",
     "UploadedFile",
+    "SlaDocument",
     "Reminder",
     "AuditLog",
 ]

@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { C, pill, statusVariant, objColor } from '../../tokens.js';
+import { slaApi } from '../../api/client.js';
 
 export default function PartnerDrawer({ partner: p, onClose, isAdmin = false, onEdit }) {
   useEffect(() => {
@@ -7,6 +8,37 @@ export default function PartnerDrawer({ partner: p, onClose, isAdmin = false, on
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [onClose]);
+
+  // SLA documents (admin review)
+  const [slaDocs, setSlaDocs] = useState([]);
+  const [slaBusy, setSlaBusy] = useState(false);
+  const loadSla = () => {
+    if (!p.id) return;
+    slaApi.list(p.id).then(d => setSlaDocs(Array.isArray(d) ? d : [])).catch(() => {});
+  };
+  useEffect(loadSla, [p.id]);
+
+  const reviewSla = async (docId, status) => {
+    setSlaBusy(true);
+    try {
+      const notes = status === 'rejected'
+        ? (window.prompt('Reason for rejection (optional):') || null)
+        : null;
+      await slaApi.review(docId, status, notes);
+      loadSla();
+    } catch (_) { /* surface silently; drawer is read-mostly */ }
+    finally { setSlaBusy(false); }
+  };
+
+  const slaPill = (status) => {
+    const map = {
+      approved: { bg: C.greenBg, color: C.green, label: 'Approved' },
+      rejected: { bg: C.redBg, color: C.red, label: 'Rejected' },
+      pending:  { bg: C.amberBg, color: C.amber700, label: 'Pending' },
+    };
+    const s = map[status] || map.pending;
+    return <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 10, background: s.bg, color: s.color, fontWeight: 600 }}>{s.label}</span>;
+  };
 
   const Section = ({ title, children }) => (
     <div style={{ padding: '14px 20px', borderBottom: `1px solid ${C.borderLight}` }}>
@@ -110,6 +142,36 @@ export default function PartnerDrawer({ partner: p, onClose, isAdmin = false, on
             </div>
           ))}
         </Section>
+
+        {/* SLA documents (admin review) */}
+        {isAdmin && (
+          <Section title="SLA documents">
+            {slaDocs.length === 0
+              ? <div style={{ fontSize: 11, color: C.textMuted, fontStyle: 'italic' }}>No SLA document uploaded yet.</div>
+              : slaDocs.map(d => (
+                  <div key={d.id} style={{ border: `1px solid ${C.borderLight}`, borderRadius: 6, padding: 10, marginBottom: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <span style={{ fontSize: 16 }}>📄</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 11, fontWeight: 500, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {d.storage_url ? <a href={d.storage_url} target="_blank" rel="noreferrer" style={{ color: C.blue600, textDecoration: 'none' }}>{d.original_filename}</a> : d.original_filename}
+                        </div>
+                        <div style={{ fontSize: 9, color: C.textMuted }}>{new Date(d.created_at).toLocaleDateString()}</div>
+                      </div>
+                      {slaPill(d.status)}
+                    </div>
+                    {d.status === 'pending' && (
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button disabled={slaBusy} onClick={() => reviewSla(d.id, 'approved')} style={{ padding: '4px 10px', fontSize: 10, borderRadius: 5, border: `1px solid ${C.green100}`, background: C.greenBg, color: C.green, cursor: 'pointer', fontWeight: 500 }}>✓ Approve</button>
+                        <button disabled={slaBusy} onClick={() => reviewSla(d.id, 'rejected')} style={{ padding: '4px 10px', fontSize: 10, borderRadius: 5, border: `1px solid ${C.red100}`, background: C.redBg, color: C.red700, cursor: 'pointer', fontWeight: 500 }}>✕ Reject</button>
+                      </div>
+                    )}
+                    {d.review_notes && <div style={{ fontSize: 10, color: C.textMuted, marginTop: 4 }}>Note: {d.review_notes}</div>}
+                  </div>
+                ))
+            }
+          </Section>
+        )}
 
         {/* Admin actions */}
         {isAdmin && (

@@ -19,7 +19,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, require_admin, require_any
 from app.db.session import get_db
-from app.models.submission import Submission, Activity
+from app.models.submission import (
+    Submission, Activity, OutputIndicators, TrainingByFocusArea, SubmissionLocation,
+)
 from app.models.uploaded_file import UploadedFile
 from app.models.user import User
 from app.models.organisation import Organisation
@@ -173,7 +175,10 @@ async def submit_report(
             proj.project_title = body.project_title
 
     # ── Upsert submission for (org, period) ───────────────────────────────────
-    data = body.model_dump(exclude={"org_id"}, exclude_unset=True)
+    # Submission-level scalar columns only — activities/districts handled below.
+    data = body.model_dump(
+        exclude={"org_id", "activities", "districts"}, exclude_unset=True
+    )
     from sqlalchemy import delete as sa_delete
     sub = await db.scalar(
         select(Submission).where(
@@ -200,6 +205,47 @@ async def submit_report(
     sub.status = "submitted"
     sub.submitted_by = user.id
     sub.submitted_at = datetime.now(timezone.utc)
+    await db.flush()
+
+    # ── Replace activities, indicators, training and locations ────────────────
+    # Clean resubmit: drop existing children (DB FKs cascade to indicators/training).
+    await db.execute(sa_delete(Activity).where(Activity.submission_id == sub.id))
+    await db.execute(
+        sa_delete(SubmissionLocation).where(SubmissionLocation.submission_id == sub.id)
+    )
+
+    # Section B districts: use the client-supplied list, else the union across activities.
+    districts = body.districts or sorted(
+        {d for a in body.activities for d in a.districts}
+    )
+    for d in districts:
+        db.add(SubmissionLocation(submission_id=sub.id, district_name=d))
+
+    for a in body.activities:
+        act = Activity(
+            submission_id=sub.id,
+            focus_areas=a.focus_areas,
+            focus_area_other=a.focus_area_other,
+            objectives=a.objectives,
+            tactics=a.tactics,
+            districts=a.districts,
+            activity_type=a.activity_type,
+            intervention_levels=a.intervention_levels,
+            activity_title=a.activity_title,
+            description=a.description,
+            planned_vs_actual=a.planned_vs_actual,
+            implementation_status=a.implementation_status,
+            start_date=a.start_date,
+            end_date=a.end_date,
+        )
+        db.add(act)
+        await db.flush()  # populate act.activity_id
+
+        for ind in a.indicators:
+            db.add(OutputIndicators(activity_id=act.activity_id, **ind.model_dump()))
+        for tr in a.training:
+            db.add(TrainingByFocusArea(activity_id=act.activity_id, **tr.model_dump()))
+
     await db.flush()
 
     await log_action(db, user, "submission.submit_report", "submission", sub.id)
@@ -293,6 +339,9 @@ async def get_submission(
     out.period_label = s.reporting_period.label if s.reporting_period else None
     out.focus_areas  = sorted({fa for a in s.activities for fa in (a.focus_areas or [])})
 
+    def _sum(rows, attr):
+        return sum((getattr(r, attr) or 0) for r in rows)
+
     out.activities = [
         ActivitySummary(
             activity_title=a.activity_title,
@@ -300,13 +349,18 @@ async def get_submission(
             implementation_status=a.implementation_status,
             focus_areas=a.focus_areas or [],
             objectives=a.objectives or [],
-            students_f=(oi.students_inschool_f if (oi := a.output_indicators) else 0),
-            students_m=(oi.students_inschool_m if oi else 0),
-            teachers_f=(oi.teachers_f if oi else 0),
-            teachers_m=(oi.teachers_m if oi else 0),
-            community_f=(oi.community_members_f if oi else 0),
-            community_m=(oi.community_members_m if oi else 0),
-            schools_total=((oi.schools_primary + oi.schools_jss + oi.schools_sss) if oi else 0),
+            # Aggregate across the per-district output_indicators rows
+            students_f=_sum(a.output_indicators, "students_inschool_f"),
+            students_m=_sum(a.output_indicators, "students_inschool_m"),
+            teachers_f=_sum(a.output_indicators, "teachers_f"),
+            teachers_m=_sum(a.output_indicators, "teachers_m"),
+            community_f=_sum(a.output_indicators, "community_members_f"),
+            community_m=_sum(a.output_indicators, "community_members_m"),
+            schools_total=(
+                _sum(a.output_indicators, "schools_primary")
+                + _sum(a.output_indicators, "schools_jss")
+                + _sum(a.output_indicators, "schools_sss")
+            ),
         )
         for a in s.activities
     ]

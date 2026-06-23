@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { C } from '../../tokens.js';
-import { organisationsApi } from '../../api/client.js';
+import { organisationsApi, slaApi } from '../../api/client.js';
 
 const FIELD = {
   label: { fontSize: 11, fontWeight: 500, color: C.textSec, marginBottom: 4 },
@@ -27,6 +27,12 @@ export default function ProfileSettings({ user }) {
   const [saveError, setSaveError] = useState('');
   const [editing, setEditing] = useState(false);
 
+  // SLA documents
+  const [slaDocs, setSlaDocs] = useState([]);
+  const [slaUploading, setSlaUploading] = useState(false);
+  const [slaError, setSlaError] = useState('');
+  const slaInputRef = useRef(null);
+
   useEffect(() => {
     if (!user?.organisation_id) { setLoading(false); return; }
     organisationsApi.get(user.organisation_id)
@@ -41,6 +47,48 @@ export default function ProfileSettings({ user }) {
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
   }, [user?.organisation_id]);
+
+  const loadSla = () => {
+    if (!user?.organisation_id) return;
+    slaApi.list(user.organisation_id)
+      .then(docs => setSlaDocs(Array.isArray(docs) ? docs : []))
+      .catch(() => {});
+  };
+  useEffect(loadSla, [user?.organisation_id]);
+
+  const handleSlaUpload = async (file) => {
+    if (!file) return;
+    setSlaError('');
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['pdf', 'doc', 'docx'].includes(ext)) {
+      setSlaError('Only PDF or Word documents are allowed.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setSlaError('File exceeds the 10 MB limit.');
+      return;
+    }
+    setSlaUploading(true);
+    try {
+      await slaApi.upload(user.organisation_id, file);
+      loadSla();
+    } catch (err) {
+      setSlaError(err.message || 'Upload failed.');
+    } finally {
+      setSlaUploading(false);
+      if (slaInputRef.current) slaInputRef.current.value = '';
+    }
+  };
+
+  const slaBadge = (status) => {
+    const map = {
+      approved: { bg: C.greenBg, color: C.green, label: 'Approved' },
+      rejected: { bg: C.redBg, color: C.red, label: 'Rejected' },
+      pending:  { bg: C.amberBg, color: C.amber700, label: 'Pending review' },
+    };
+    const s = map[status] || map.pending;
+    return <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: s.bg, color: s.color, fontWeight: 600 }}>{s.label}</span>;
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -108,7 +156,7 @@ export default function ProfileSettings({ user }) {
         background: C.white, border: `1px solid ${C.border}`, borderRadius: 8,
         padding: '16px 20px', marginBottom: 20,
       }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: C.textSec, marginBottom: 12, textTransform: 'uppercase', letterSpacing: '.06em', fontSize: 10 }}>
+        <div style={{ fontWeight: 600, color: C.textSec, marginBottom: 12, textTransform: 'uppercase', letterSpacing: '.06em', fontSize: 10 }}>
           Organisation
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -129,6 +177,50 @@ export default function ProfileSettings({ user }) {
             <div style={FIELD.inputReadonly}>{org?.sla_signed ? 'Yes' : 'Pending'}</div>
           </div>
         </div>
+      </div>
+
+      {/* SLA document card */}
+      <div style={{
+        background: C.white, border: `1px solid ${C.border}`, borderRadius: 8,
+        padding: '16px 20px', marginBottom: 20,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: C.textSec, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+            Service Level Agreement (SLA)
+          </div>
+          <input ref={slaInputRef} type="file" accept=".pdf,.doc,.docx" style={{ display: 'none' }}
+            onChange={e => handleSlaUpload(e.target.files?.[0])} />
+          <button onClick={() => slaInputRef.current?.click()} disabled={slaUploading} style={{
+            fontSize: 11, padding: '5px 12px', borderRadius: 5,
+            border: `1px solid ${C.blue600}`, background: slaUploading ? C.borderLight : C.blueBg,
+            color: C.blue600, cursor: slaUploading ? 'default' : 'pointer', fontWeight: 500,
+          }}>{slaUploading ? 'Uploading…' : '⬆ Upload SLA'}</button>
+        </div>
+        <div style={{ fontSize: 11, color: C.textSec, marginBottom: 12 }}>
+          Upload your signed SLA as a PDF or Word document (max 10 MB). An MBSSE administrator will review and approve it.
+        </div>
+        {slaError && (
+          <div style={{ background: C.redBg, border: `1px solid ${C.red}`, borderRadius: 6, padding: '9px 12px', fontSize: 12, color: C.red, marginBottom: 12 }}>{slaError}</div>
+        )}
+        {slaDocs.length === 0
+          ? <div style={{ fontSize: 12, color: C.textMuted, fontStyle: 'italic' }}>No SLA document uploaded yet.</div>
+          : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {slaDocs.map(d => (
+                <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', border: `1px solid ${C.border}`, borderRadius: 6 }}>
+                  <span style={{ fontSize: 18 }}>📄</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {d.storage_url ? <a href={d.storage_url} target="_blank" rel="noreferrer" style={{ color: C.blue600, textDecoration: 'none' }}>{d.original_filename}</a> : d.original_filename}
+                    </div>
+                    <div style={{ fontSize: 10, color: C.textMuted }}>{new Date(d.created_at).toLocaleDateString()}{d.review_notes ? ` · ${d.review_notes}` : ''}</div>
+                  </div>
+                  {slaBadge(d.status)}
+                </div>
+              ))}
+            </div>
+          )
+        }
       </div>
 
       {/* Editable contact card */}

@@ -107,8 +107,10 @@ class Activity(Base):
 
     # Section C — Classification (all multi-select → ARRAY)
     focus_areas          = Column(ARRAY(String), default=list)   # fa1 … fa8
+    focus_area_other     = Column(Text)                          # free text when "8. Other" is selected
     objectives           = Column(ARRAY(String), default=list)   # obj1 / obj2 / obj3
     tactics              = Column(ARRAY(String), default=list)   # tac1 … tac9
+    districts            = Column(ARRAY(String), default=list)   # Section C — district(s) this activity covers
     activity_type        = Column(String(80))                    # Training / Safe Space / Awareness / etc.
     intervention_levels  = Column(ARRAY(String), default=list)   # School-based / Community-based / System-level
 
@@ -124,17 +126,22 @@ class Activity(Base):
     updated_at = Column(TIMESTAMPTZ, server_default=func.now(), onupdate=func.now())
 
     submission      = relationship("Submission", back_populates="activities")
-    output_indicators = relationship("OutputIndicators", back_populates="activity", uselist=False, cascade="all, delete-orphan")
+    # One row per (activity, district). With a single district there is one row.
+    output_indicators = relationship("OutputIndicators", back_populates="activity", cascade="all, delete-orphan")
+    training_rows     = relationship("TrainingByFocusArea", back_populates="activity", cascade="all, delete-orphan")
 
 
 class OutputIndicators(Base):
     """
     Section 5.7 — Output Indicators.
-    One row per activity; all numeric output fields for that activity.
+    One row per (activity, district). When an activity covers multiple districts
+    the partner enters a full indicator set per district; single-district
+    activities have one row keyed with district_name = '' (overall).
     """
     __tablename__ = "output_indicators"
 
-    activity_id = Column(UUID(as_uuid=True), ForeignKey("activities.activity_id", ondelete="CASCADE"), primary_key=True)
+    activity_id   = Column(UUID(as_uuid=True), ForeignKey("activities.activity_id", ondelete="CASCADE"), primary_key=True)
+    district_name = Column(String(60), primary_key=True, nullable=False, default="")
 
     # Schools reached by level
     schools_pre_primary = Column(Integer, default=0)
@@ -170,21 +177,22 @@ class OutputIndicators(Base):
     # Vulnerable groups
     pregnant_girls    = Column(Integer, default=0)
     teenage_mothers   = Column(Integer, default=0)
+    teenage_fathers   = Column(Integer, default=0)
 
     # Student engagement with SRGBV mechanisms
     students_used_reporting_mechanism = Column(Integer, default=0)
     students_confident_reporting      = Column(Integer, default=0)
 
-    # Teachers / school staff
+    # Teachers / school staff — totals (per-focus-area breakdown in TrainingByFocusArea)
     teachers_f               = Column(Integer, default=0)
     teachers_m               = Column(Integer, default=0)
     teachers_demonstrated_grp = Column(Integer, default=0)
 
-    # District officials
+    # District officials — totals (per-focus-area breakdown in TrainingByFocusArea)
     district_officials_f = Column(Integer, default=0)
     district_officials_m = Column(Integer, default=0)
 
-    # Central government officials
+    # Central government officials — totals (per-focus-area breakdown in TrainingByFocusArea)
     central_officials_f = Column(Integer, default=0)
     central_officials_m = Column(Integer, default=0)
 
@@ -197,3 +205,22 @@ class OutputIndicators(Base):
     policy_dialogue_events = Column(Integer, default=0)
 
     activity = relationship("Activity", back_populates="output_indicators")
+
+
+class TrainingByFocusArea(Base):
+    """
+    Section E (#6) — Teachers / school staff and Government officials trained,
+    disaggregated by focus area (and by district, consistent with the per-district
+    output indicators). One row per (activity, district, focus_area, cadre).
+    """
+    __tablename__ = "training_by_focus_area"
+
+    id            = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    activity_id   = Column(UUID(as_uuid=True), ForeignKey("activities.activity_id", ondelete="CASCADE"), nullable=False)
+    district_name = Column(String(60), nullable=False, default="")
+    focus_area    = Column(String(120), nullable=False)
+    cadre         = Column(String(20), nullable=False)   # teacher / district_official / central_official
+    female        = Column(Integer, default=0)
+    male          = Column(Integer, default=0)
+
+    activity = relationship("Activity", back_populates="training_rows")
