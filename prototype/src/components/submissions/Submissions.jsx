@@ -36,6 +36,78 @@ function fmt(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+// Humanise an indicator key like "students_inschool_f" → "Students inschool f"
+const humanise = (k) => k.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
+const CADRE_LABEL = { teacher: 'Teachers', district_official: 'District officials', central_official: 'Central officials' };
+
+function ActivityBreakdown({ a, index }) {
+  const indicators = a.indicators ?? [];
+  const training = a.training ?? [];
+  const districts = a.districts ?? [];
+  if (indicators.length === 0 && training.length === 0 && districts.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 10, padding: '10px 12px', background: C.white, border: `1px solid ${C.border}`, borderRadius: 6 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: C.text, marginBottom: 6 }}>
+        Activity {index + 1} — {a.activity_title || 'Untitled'}
+      </div>
+
+      {/* Districts + other focus area */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+        {districts.map(d => (
+          <span key={d} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: C.blueBg, color: C.blue600, border: `1px solid ${C.blue100}` }}>{d}</span>
+        ))}
+        {a.focus_area_other && (
+          <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: C.amberBg, color: C.amber700 }}>Other: {a.focus_area_other}</span>
+        )}
+      </div>
+
+      {/* Per-district indicators (non-zero only) */}
+      {indicators.map((row, ri) => {
+        const entries = Object.entries(row).filter(([k, v]) => k !== 'district_name' && Number(v) > 0);
+        return (
+          <div key={ri} style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: C.textSec, marginBottom: 3 }}>
+              📍 {row.district_name || '(no district)'}
+            </div>
+            {entries.length === 0
+              ? <div style={{ fontSize: 10, color: C.textMuted, fontStyle: 'italic' }}>No non-zero indicators entered.</div>
+              : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {entries.map(([k, v]) => (
+                    <span key={k} style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, background: '#f8fafc', border: `1px solid ${C.borderLight}`, color: C.textSec }}>
+                      {humanise(k)}: <strong style={{ color: C.text }}>{v}</strong>
+                    </span>
+                  ))}
+                </div>
+              )
+            }
+          </div>
+        );
+      })}
+
+      {/* Training by focus area */}
+      {training.length > 0 && (
+        <div style={{ marginTop: 6 }}>
+          <div style={{ fontSize: 10, fontWeight: 600, color: C.textSec, marginBottom: 3 }}>Training by focus area</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr 1fr 50px 50px', gap: 0, fontSize: 9, fontWeight: 600, color: C.textMuted, textTransform: 'uppercase', padding: '3px 6px', background: C.borderLight, borderRadius: 4 }}>
+            <div>District</div><div>Focus area</div><div>Cadre</div><div style={{ textAlign: 'right' }}>F</div><div style={{ textAlign: 'right' }}>M</div>
+          </div>
+          {training.map((t, ti) => (
+            <div key={ti} style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr 1fr 50px 50px', gap: 0, fontSize: 10, padding: '3px 6px', borderBottom: `1px solid ${C.borderLight}` }}>
+              <div style={{ color: C.textSec }}>{t.district_name || '—'}</div>
+              <div style={{ color: C.textSec }}>{t.focus_area}</div>
+              <div style={{ color: C.textSec }}>{CADRE_LABEL[t.cadre] || t.cadre}</div>
+              <div style={{ textAlign: 'right' }}>{t.female}</div>
+              <div style={{ textAlign: 'right' }}>{t.male}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DetailPanel({ sub, loading, isAdmin, onVerify, onClose }) {
   const [verifying, setVerifying] = useState(false);
 
@@ -150,6 +222,9 @@ function DetailPanel({ sub, loading, isAdmin, onVerify, onClose }) {
               <div>{a.schools_total ?? 0}</div>
             </div>
           ))}
+
+          {/* Per-activity detailed breakdown (per district + per focus-area training) */}
+          {activities.map((a, i) => <ActivityBreakdown key={`bd-${i}`} a={a} index={i} />)}
         </div>
       )}
 

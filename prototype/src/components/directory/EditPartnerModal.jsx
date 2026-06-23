@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { C } from '../../tokens.js';
-import { organisationsApi } from '../../api/client.js';
+import { organisationsApi, slaApi } from '../../api/client.js';
 
 const ORG_TYPES = ['CSO', 'UN Agency', 'Government', 'Other'];
 const DISTRICTS = [
@@ -33,6 +33,36 @@ export default function EditPartnerModal({ partner: p, onClose, onUpdated }) {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
+
+  // SLA documents
+  const [slaDocs, setSlaDocs] = useState([]);
+  const [slaBusy, setSlaBusy] = useState(false);
+  const loadSla = () => {
+    if (!p.id) return;
+    slaApi.list(p.id).then(d => setSlaDocs(Array.isArray(d) ? d : [])).catch(() => {});
+  };
+  useEffect(loadSla, [p.id]);
+
+  const reviewSla = async (docId, status) => {
+    setSlaBusy(true);
+    try {
+      const notes = status === 'rejected' ? (window.prompt('Reason for rejection (optional):') || null) : null;
+      await slaApi.review(docId, status, notes);
+      if (status === 'approved') set('sla_signed', true);
+      loadSla();
+    } catch (_) { /* non-fatal */ }
+    finally { setSlaBusy(false); }
+  };
+
+  const slaPill = (status) => {
+    const map = {
+      approved: { bg: C.greenBg, color: C.green, label: 'Approved' },
+      rejected: { bg: C.redBg, color: C.red, label: 'Rejected' },
+      pending:  { bg: C.amberBg, color: C.amber700, label: 'Pending' },
+    };
+    const s = map[status] || map.pending;
+    return <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 10, background: s.bg, color: s.color, fontWeight: 600 }}>{s.label}</span>;
+  };
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -149,6 +179,34 @@ export default function EditPartnerModal({ partner: p, onClose, onUpdated }) {
                 onChange={e => set('sla_signed', e.target.checked)}
                 style={{ width: 15, height: 15, cursor: 'pointer' }} />
               <label htmlFor="sla_edit" style={{ fontSize: 12, color: C.text, cursor: 'pointer' }}>SLA signed</label>
+            </div>
+          </div>
+
+          {/* SLA documents — review / approve */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={FIELD.label}>SLA documents</div>
+            <div style={{ border: `1px solid ${C.border}`, borderRadius: 5, padding: '8px 10px', background: '#f9fbfc' }}>
+              {slaDocs.length === 0
+                ? <div style={{ fontSize: 11, color: C.textMuted, fontStyle: 'italic' }}>No SLA document uploaded by this partner yet.</div>
+                : slaDocs.map(d => (
+                    <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: `1px solid ${C.borderLight}` }}>
+                      <span style={{ fontSize: 15 }}>📄</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 11, fontWeight: 500, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {d.storage_url ? <a href={d.storage_url} target="_blank" rel="noreferrer" style={{ color: C.blue600, textDecoration: 'none' }}>{d.original_filename}</a> : d.original_filename}
+                        </div>
+                        <div style={{ fontSize: 9, color: C.textMuted }}>{new Date(d.created_at).toLocaleDateString()}{d.review_notes ? ` · ${d.review_notes}` : ''}</div>
+                      </div>
+                      {slaPill(d.status)}
+                      {d.status === 'pending' && (
+                        <>
+                          <button type="button" disabled={slaBusy} onClick={() => reviewSla(d.id, 'approved')} style={{ padding: '3px 8px', fontSize: 10, borderRadius: 4, border: `1px solid ${C.green100}`, background: C.greenBg, color: C.green, cursor: 'pointer', fontWeight: 500 }}>✓</button>
+                          <button type="button" disabled={slaBusy} onClick={() => reviewSla(d.id, 'rejected')} style={{ padding: '3px 8px', fontSize: 10, borderRadius: 4, border: `1px solid ${C.red100}`, background: C.redBg, color: C.red700, cursor: 'pointer', fontWeight: 500 }}>✕</button>
+                        </>
+                      )}
+                    </div>
+                  ))
+              }
             </div>
           </div>
 

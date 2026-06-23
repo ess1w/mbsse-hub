@@ -324,6 +324,7 @@ async def get_submission(
                 joinedload(Submission.organisation),
                 joinedload(Submission.reporting_period),
                 selectinload(Submission.activities).selectinload(Activity.output_indicators),
+                selectinload(Submission.activities).selectinload(Activity.training_rows),
                 selectinload(Submission.locations),
                 selectinload(Submission.files),
             )
@@ -342,13 +343,19 @@ async def get_submission(
     def _sum(rows, attr):
         return sum((getattr(r, attr) or 0) for r in rows)
 
+    def _oi_to_dict(oi):
+        return {c.name: getattr(oi, c.name)
+                for c in oi.__table__.columns if c.name != "activity_id"}
+
     out.activities = [
         ActivitySummary(
             activity_title=a.activity_title,
             activity_type=a.activity_type,
             implementation_status=a.implementation_status,
             focus_areas=a.focus_areas or [],
+            focus_area_other=a.focus_area_other,
             objectives=a.objectives or [],
+            districts=a.districts or [],
             # Aggregate across the per-district output_indicators rows
             students_f=_sum(a.output_indicators, "students_inschool_f"),
             students_m=_sum(a.output_indicators, "students_inschool_m"),
@@ -361,6 +368,18 @@ async def get_submission(
                 + _sum(a.output_indicators, "schools_jss")
                 + _sum(a.output_indicators, "schools_sss")
             ),
+            # Full per-district + training breakdown
+            indicators=[_oi_to_dict(oi) for oi in a.output_indicators],
+            training=[
+                {
+                    "district_name": t.district_name,
+                    "focus_area": t.focus_area,
+                    "cadre": t.cadre,
+                    "female": t.female or 0,
+                    "male": t.male or 0,
+                }
+                for t in a.training_rows
+            ],
         )
         for a in s.activities
     ]

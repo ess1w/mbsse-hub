@@ -366,13 +366,16 @@ class SubmissionOut(BaseModel):
 
 
 class ActivitySummary(BaseModel):
-    """One activity within a submission, with rolled-up output indicators."""
+    """One activity within a submission, with rolled-up output indicators
+    plus the per-district indicator rows and per-focus-area training detail."""
     model_config = {"from_attributes": True}
     activity_title: str | None = None
     activity_type: str | None = None
     implementation_status: str | None = None
     focus_areas: list[str] = Field(default_factory=list)
+    focus_area_other: str | None = None
     objectives: list[str] = Field(default_factory=list)
+    districts: list[str] = Field(default_factory=list)
     students_f: int = 0
     students_m: int = 0
     teachers_f: int = 0
@@ -380,6 +383,9 @@ class ActivitySummary(BaseModel):
     community_f: int = 0
     community_m: int = 0
     schools_total: int = 0
+    # Full breakdown for the verification view
+    indicators: list[dict] = Field(default_factory=list)   # one dict per district
+    training: list[dict] = Field(default_factory=list)      # district × focus area × cadre
 
 
 class LocationSummary(BaseModel):
