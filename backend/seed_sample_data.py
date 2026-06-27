@@ -176,20 +176,28 @@ async def seed_period(conn, period_cfg, admin_id):
             submitted_at, verified_at,
         )
 
+        act_district = random.choice(DISTRICTS)
         await conn.execute(
             """INSERT INTO activities (
                    activity_id, submission_id,
                    focus_areas, objectives, activity_type,
                    activity_title, description, implementation_status,
-                   start_date, end_date
-               ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)""",
+                   start_date, end_date, districts
+               ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)""",
             act_id, sub_id,
             focus, [objective], random.choice(ACTIVITY_TYPES),
-            f"SRGBV Awareness and Prevention — {random.choice(DISTRICTS)}",
+            f"SRGBV Awareness and Prevention — {act_district}",
             "Conducted school-based sessions on SRGBV prevention and referral pathways.",
             random.choice(IMPL_STATUSES),
             date(2026, sub_months[0], rnd(5, 20)),
             date(2026, sub_months[-1], rnd(1, 25)),
+            [act_district],
+        )
+
+        await conn.execute(
+            """INSERT INTO submission_locations (location_id, submission_id, district_name)
+               VALUES ($1, $2, $3)""",
+            str(uuid.uuid4()), sub_id, act_district,
         )
 
         f_stud = rnd(100, 3000)
@@ -198,14 +206,14 @@ async def seed_period(conn, period_cfg, admin_id):
         m_tchr = rnd(3, 30)
         await conn.execute(
             """INSERT INTO output_indicators (
-                   activity_id,
+                   activity_id, district_name,
                    schools_primary, schools_jss, schools_sss,
                    students_inschool_f, students_inschool_m,
                    students_inschool_age_10_14, students_inschool_age_15_19,
                    teachers_f, teachers_m,
                    community_sessions, community_members_f, community_members_m
-               ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)""",
-            act_id,
+               ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)""",
+            act_id, act_district,
             rnd(1, 5), rnd(1, 4), rnd(0, 3),
             f_stud, m_stud,
             rnd(50, f_stud), rnd(30, m_stud),

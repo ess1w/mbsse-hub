@@ -232,6 +232,15 @@ export default function ReportingForm({ user, setActivePage }) {
     // Section B districts: union of every activity's selected districts.
     const coverageDistricts = [...new Set(activities.flatMap(a => a.districts || []))];
 
+    // Normalise controlled vocab to the canonical values stored in the database
+    // (charts group on these): focus areas without the "N. " prefix, objectives
+    // as obj1–obj3 codes, tactics as tac1–tac9 codes.
+    const stripNum   = (s) => (s || '').replace(/^\s*\d+\.\s*/, '');
+    const OBJ_CODE   = Object.fromEntries(FORM_OBJECTIVES.map((o, i) => [o.full, `obj${i + 1}`]));
+    const TAC_CODE   = Object.fromEntries(TACTICS.map((t, i) => [t, `tac${i + 1}`]));
+    const toObjCode  = (o) => OBJ_CODE[o] || o;
+    const toTacCode  = (t) => TAC_CODE[t] || t;
+
     // Build activity payloads with nested per-district indicators + training (#2–#6)
     const activityPayloads = activities.map(a => {
       const dists = indDistrictsOf(a);
@@ -260,16 +269,16 @@ export default function ReportingForm({ user, setActivePage }) {
             const female = Number(getTraining(a, d, fa, key, 'f')) || 0;
             const male   = Number(getTraining(a, d, fa, key, 'm')) || 0;
             if (female || male) {
-              training.push({ district_name: d, focus_area: fa, cadre: key, female, male });
+              training.push({ district_name: d, focus_area: stripNum(fa), cadre: key, female, male });
             }
           });
         });
       });
       return {
-        focus_areas: a.focusAreas || [],
+        focus_areas: (a.focusAreas || []).map(stripNum),
         focus_area_other: a.focusAreas?.includes('8. Other') ? (a.focusAreaOther || null) : null,
-        objectives: a.objectives || [],
-        tactics: a.tactics || [],
+        objectives: (a.objectives || []).map(toObjCode),
+        tactics: (a.tactics || []).map(toTacCode),
         districts: a.districts || [],
         activity_type: a.activityType || null,
         intervention_levels: a.interventionLevels || [],

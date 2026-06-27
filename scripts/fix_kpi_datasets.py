@@ -11,6 +11,29 @@ ACTIVE_PERIOD = (
     "s.reporting_period_id = (SELECT id FROM reporting_periods WHERE is_active = true LIMIT 1)"
 )
 
+DISTRICT_ARR = """
+CASE
+  WHEN COALESCE(NULLIF(oi.district_name, ''), '') <> '' THEN ARRAY[oi.district_name]
+  WHEN COALESCE(array_length(a.districts, 1), 0) > 0 THEN a.districts
+  WHEN COALESCE(array_length(o.districts, 1), 0) > 0 THEN o.districts
+  ELSE ARRAY['(unknown)']::varchar[]
+END
+"""
+
+FOCUS_ARR = """
+CASE
+  WHEN COALESCE(array_length(a.focus_areas, 1), 0) > 0 THEN a.focus_areas
+  ELSE ARRAY['(unknown)']::varchar[]
+END
+"""
+
+ORG_DISTRICT_ARR = """
+CASE
+  WHEN COALESCE(array_length(o.districts, 1), 0) > 0 THEN o.districts
+  ELSE ARRAY['(unknown)']::varchar[]
+END
+"""
+
 # Largest-remainder integer allocation across district x focus_area rows per entity.
 ALLOC_TAIL = """
 allocated AS (
@@ -30,8 +53,8 @@ WITH act AS (
     rp.label AS period,
     a.activity_id,
     {metric_expr} AS metric_value,
-    o.districts,
-    a.focus_areas
+    {DISTRICT_ARR} AS district_arr,
+    {FOCUS_ARR} AS focus_arr
   FROM output_indicators oi
   JOIN activities a ON a.activity_id = oi.activity_id
   JOIN submissions s ON s.id = a.submission_id
@@ -52,18 +75,8 @@ pairs AS (
     ) AS rn,
     COUNT(*) OVER (PARTITION BY act.activity_id) AS n
   FROM act
-  CROSS JOIN LATERAL unnest(
-    CASE
-      WHEN COALESCE(array_length(act.districts, 1), 0) > 0 THEN act.districts
-      ELSE ARRAY['(unknown)']::varchar[]
-    END
-  ) AS d(district)
-  CROSS JOIN LATERAL unnest(
-    CASE
-      WHEN COALESCE(array_length(act.focus_areas, 1), 0) > 0 THEN act.focus_areas
-      ELSE ARRAY['(unknown)']::varchar[]
-    END
-  ) AS fa(focus_area)
+  CROSS JOIN LATERAL unnest(act.district_arr) AS d(district)
+  CROSS JOIN LATERAL unnest(act.focus_arr) AS fa(focus_area)
 ),
 """
 
@@ -71,12 +84,7 @@ SUBMISSION_PAIRS = """
 WITH sub_focus AS (
   SELECT DISTINCT a.submission_id, fa.focus_area
   FROM activities a
-  CROSS JOIN LATERAL unnest(
-    CASE
-      WHEN COALESCE(array_length(a.focus_areas, 1), 0) > 0 THEN a.focus_areas
-      ELSE ARRAY['(unknown)']::varchar[]
-    END
-  ) AS fa(focus_area)
+  CROSS JOIN LATERAL unnest({FOCUS_ARR}) AS fa(focus_area)
 ),
 sub AS (
   SELECT
@@ -84,7 +92,7 @@ sub AS (
     s.id AS submission_id,
     s.org_id,
     {metric_expr} AS metric_value,
-    o.districts
+    {ORG_DISTRICT_ARR} AS district_arr
   FROM submissions s
   JOIN reporting_periods rp ON rp.id = s.reporting_period_id
   JOIN organisations o ON o.org_id = s.org_id
@@ -104,12 +112,7 @@ pairs AS (
     COUNT(*) OVER (PARTITION BY sub.submission_id) AS n
   FROM sub
   JOIN sub_focus sf ON sf.submission_id = sub.submission_id
-  CROSS JOIN LATERAL unnest(
-    CASE
-      WHEN COALESCE(array_length(sub.districts, 1), 0) > 0 THEN sub.districts
-      ELSE ARRAY['(unknown)']::varchar[]
-    END
-  ) AS d(district)
+  CROSS JOIN LATERAL unnest(sub.district_arr) AS d(district)
 ),
 """
 
@@ -117,18 +120,13 @@ ORG_ONE_PAIRS = """
 WITH sub_focus AS (
   SELECT DISTINCT a.submission_id, fa.focus_area
   FROM activities a
-  CROSS JOIN LATERAL unnest(
-    CASE
-      WHEN COALESCE(array_length(a.focus_areas, 1), 0) > 0 THEN a.focus_areas
-      ELSE ARRAY['(unknown)']::varchar[]
-    END
-  ) AS fa(focus_area)
+  CROSS JOIN LATERAL unnest({FOCUS_ARR}) AS fa(focus_area)
 ),
 orgs AS (
   SELECT DISTINCT
     rp.label AS period,
     o.org_id,
-    o.districts
+    {ORG_DISTRICT_ARR} AS district_arr
   FROM organisations o
   JOIN submissions s ON s.org_id = o.org_id
   JOIN reporting_periods rp ON rp.id = s.reporting_period_id
@@ -148,12 +146,7 @@ pairs AS (
   FROM orgs
   JOIN submissions s ON s.org_id = orgs.org_id AND {active_period}
   JOIN sub_focus sf ON sf.submission_id = s.id
-  CROSS JOIN LATERAL unnest(
-    CASE
-      WHEN COALESCE(array_length(orgs.districts, 1), 0) > 0 THEN orgs.districts
-      ELSE ARRAY['(unknown)']::varchar[]
-    END
-  ) AS d(district)
+  CROSS JOIN LATERAL unnest(orgs.district_arr) AS d(district)
   WHERE s.status IN ('submitted', 'verified')
 ),
 """

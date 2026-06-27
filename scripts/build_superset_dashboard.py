@@ -445,13 +445,30 @@ UNION ALL
 SELECT 'Male',
        SUM(oi.students_inschool_m + oi.community_members_m)
 {BASE_FROM}""",
-        "Partners by Organisation Type": """
-SELECT o.org_type, d.district, COUNT(DISTINCT o.org_id) AS partners
+        "Partners by Organisation Type": f"""
+SELECT DISTINCT
+  rp.label AS period,
+  d.district,
+  COALESCE(sf.focus_area, '(none)') AS focus_area,
+  o.org_type,
+  o.org_id
 FROM organisations o
-JOIN LATERAL unnest(o.districts) AS d(district) ON true
-WHERE array_length(o.districts, 1) > 0
-GROUP BY o.org_type, d.district
-ORDER BY partners DESC""",
+JOIN reporting_periods rp ON rp.is_active = true
+CROSS JOIN LATERAL unnest(
+  CASE
+    WHEN COALESCE(array_length(o.districts, 1), 0) > 0 THEN o.districts
+    ELSE ARRAY['(unknown)']::varchar[]
+  END
+) AS d(district)
+LEFT JOIN submissions s
+  ON s.org_id = o.org_id AND s.reporting_period_id = rp.id
+LEFT JOIN activities a ON a.submission_id = s.id
+LEFT JOIN LATERAL unnest(
+  CASE
+    WHEN COALESCE(array_length(a.focus_areas, 1), 0) > 0 THEN a.focus_areas
+    ELSE ARRAY['(none)']::varchar[]
+  END
+) AS sf(focus_area) ON a.activity_id IS NOT NULL""",
         "Partner Coverage by District": """
 SELECT d.district_name AS district,
        COUNT(DISTINCT o.org_id) AS partner_count
@@ -461,16 +478,39 @@ WHERE array_length(o.districts, 1) > 0
 GROUP BY 1
 ORDER BY 2 DESC""",
         "Submission Status — Current Period": f"""
-SELECT s.status, COUNT(*) AS submissions
-FROM submissions s
-WHERE {ACTIVE_PERIOD}
-GROUP BY s.status""",
+SELECT submission_status AS status, COUNT(*) AS submissions
+FROM (
+  SELECT
+    o.org_id,
+    CASE
+      WHEN s.id IS NULL THEN 'Not submitted'
+      WHEN s.status = 'draft' THEN 'Draft'
+      WHEN s.status IN ('submitted', 'verified', 'flagged') THEN 'Submitted'
+      ELSE INITCAP(s.status)
+    END AS submission_status
+  FROM organisations o
+  LEFT JOIN submissions s
+    ON s.org_id = o.org_id
+   AND s.reporting_period_id = (
+     SELECT id FROM reporting_periods WHERE is_active = true LIMIT 1
+   )
+  WHERE COALESCE(o.status, 'Active') != 'Inactive'
+) partners
+GROUP BY 1
+ORDER BY 1""",
         "Verification Status — Current Period": f"""
-SELECT s.status, COUNT(*) AS count
+SELECT
+  CASE s.status
+    WHEN 'verified' THEN 'Verified'
+    WHEN 'submitted' THEN 'Submitted (pending verification)'
+    ELSE INITCAP(s.status)
+  END AS status,
+  COUNT(*) AS count
 FROM submissions s
 WHERE s.status IN ('submitted', 'verified')
   AND {ACTIVE_PERIOD}
-GROUP BY s.status""",
+GROUP BY 1
+ORDER BY 1""",
         "Total Submissions": f"""
 SELECT COUNT(*) AS total_submissions
 FROM submissions s
@@ -486,15 +526,33 @@ WHERE s.status IN ('submitted', 'verified')
 GROUP BY 1
 ORDER BY 2 DESC""",
         "Activities by objective": f"""
-SELECT obj AS objective,
-       COUNT(*) AS activity_count
-FROM activities a
-JOIN submissions s ON s.id = a.submission_id
-CROSS JOIN LATERAL unnest(a.objectives) AS obj
-WHERE s.status IN ('submitted', 'verified')
-  AND {ACTIVE_PERIOD}
+SELECT objective, COUNT(DISTINCT activity_id) AS activity_count
+FROM (
+  SELECT
+    a.activity_id,
+    CASE
+      WHEN val IN ('obj1', 'Obj 1')
+        OR val ~* '^obj\\s*1'
+        OR val ~* '^1[.:]'
+        THEN 'Obj 1'
+      WHEN val IN ('obj2', 'Obj 2')
+        OR val ~* '^obj\\s*2'
+        OR val ~* '^2[.:]'
+        THEN 'Obj 2'
+      WHEN val IN ('obj3', 'Obj 3')
+        OR val ~* '^obj\\s*3'
+        OR val ~* '^3[.:]'
+        THEN 'Obj 3'
+    END AS objective
+  FROM activities a
+  JOIN submissions s ON s.id = a.submission_id
+  CROSS JOIN LATERAL unnest(a.objectives) AS obj(val)
+  WHERE s.status IN ('submitted', 'verified')
+    AND {ACTIVE_PERIOD}
+) mapped
+WHERE objective IS NOT NULL
 GROUP BY 1
-ORDER BY 2 DESC""",
+ORDER BY 1""",
         "Beneficiaries over time": f"""
 SELECT rp.label AS period, 'Female' AS gender,
        SUM(oi.students_inschool_f + oi.community_members_f) AS beneficiaries
@@ -652,7 +710,12 @@ def main() -> None:
             "datasource": f"{ds('Partners by Organisation Type')}__table",
             "viz_type": "echarts_timeseries_bar",
             "x_axis": "org_type",
-            "metrics": [client.metric(c["partners"], "SUM")],
+            "metrics": [{
+                "expressionType": "SQL",
+                "sqlExpression": "COUNT(DISTINCT org_id)",
+                "label": "Partners",
+                "optionName": f"metric_{uuid.uuid4().hex[:10]}",
+            }],
             "groupby": [],
             "adhoc_filters": [],
             "row_limit": 10000,
@@ -682,19 +745,23 @@ def main() -> None:
         ("Activities by objective", "objective", "activity_count"),
     ]:
         c = cols(title)
+        bar_spec = {
+            "datasource": f"{ds(title)}__table",
+            "viz_type": "echarts_timeseries_bar",
+            "x_axis": x_axis,
+            "metrics": [client.metric(c[metric_name], "SUM")],
+            "groupby": [],
+            "adhoc_filters": [],
+            "row_limit": 10000,
+        }
+        if title == "Activities by objective":
+            bar_spec["orientation"] = "horizontal"
+            bar_spec["show_value"] = True
         chart_ids[title] = client.upsert_chart(
             title,
             ds(title),
             "echarts_timeseries_bar",
-            {
-                "datasource": f"{ds(title)}__table",
-                "viz_type": "echarts_timeseries_bar",
-                "x_axis": x_axis,
-                "metrics": [client.metric(c[metric_name], "SUM")],
-                "groupby": [],
-                "adhoc_filters": [],
-                "row_limit": 10000,
-            },
+            bar_spec,
             charts,
         )
 
