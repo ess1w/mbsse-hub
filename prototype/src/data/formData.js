@@ -113,3 +113,24 @@ export const INTERVENTION_LEVELS = [
   'Community-based',
   'System-level',
 ];
+
+// Chiefdoms by district (official names). Used to filter the Section B chiefdom
+// picker to the partner's selected district(s).
+export const CHIEFDOMS_BY_DISTRICT = {
+  "Kailahun": ["Dea", "Jawie", "Kissi Kama", "Kissi Teng", "Kissi Tongi", "Kpeje Bongre", "Kpeje West", "Luawa", "Malema", "Mandu", "Njaluahun", "Penguia", "Upper Bambara", "Yawei"],
+  "Kenema": ["Dama", "Dodo", "Gaura", "Gorama Mende", "Kandu Leppiama", "Koya", "Langrama", "Lower Bambara", "Malegohun", "Niawa", "Nomo", "Nongowa", "Simbaru", "Small Bo", "Tunkia", "Wandor", "Kenema Town"],
+  "Kono": ["Fiama", "Gbane", "Gbane Kandor", "Gbense", "Gorama Kono", "Kamara", "Lei", "Mafindor", "Nimikoro", "Nimiyama", "Sandor", "Soa", "Tankoro", "Toli", "Koidu Town"],
+  "Bombali": ["Biriwa", "Bombali Sebora", "Gbanti Kamaranka", "Gbendembu Ngowahun", "Magbaimba Ndorhahun", "Makari Gbanti", "Paki Masabong", "Safroko Limba", "Makeni Town"],
+  "Koinadugu": ["Diang", "Kasunko", "Nieni", "Sengbe", "Wara Wara Bafodia", "Wara Wara Yagala"],
+  "Tonkolili": ["Gbonkolenken", "Kafe Simiria", "Kalansogoia", "Kholifa Mabang", "Kholifa Rowala", "Kunike Barina", "Kunike", "Malal Mara", "Sambaya", "Tane", "Yoni"],
+  "Falaba": ["Dembelia-Sinkunia", "Folosaba-Dembelia", "Mongo", "Neya", "Sulima"],
+  "Bo": ["Badjia", "Bagbo", "Bagbwe (Bagbe)", "Boama", "Bumpe Ngao", "Gbo", "Jaiama Bongor", "Kakua", "Komboya", "Lugbu", "Niawa Lenga", "Selenga", "Tikonko", "Valunia", "Wonde", "Bo Town"],
+  "Bonthe": ["Bendu Cha", "Bum", "Dema", "Imperri", "Jong", "Kpanda Kemo", "Kwamebai Krim", "Nongoba Bullom", "Sittia", "Sogbeni", "Yawbeko", "Bonthe Urban"],
+  "Moyamba": ["Bagruwa", "Bumpeh", "Dasse", "Fakunya", "Kagboro", "Kaiyamba", "Kamajei", "Kongbora", "Kori", "Kowa", "Lower Banta", "Ribbi", "Timdale", "Upper Banta"],
+  "Pujehun": ["Barri", "Galliness Perri", "Kpaka", "Panga Kabonde", "Makpele", "Malen", "Mano Sakrim", "Panga Krim", "Pejeh (Futa Pejeh)", "Soro Gbema", "Sowa", "Yakemu Kpukumu"],
+  "Western Area Rural": ["Koya Rural", "Mountain Rural", "Waterloo Rural", "York Rural"],
+  "Western Area Urban": ["Central I", "Central II", "East I", "East II", "East III", "West I", "West II", "West III", "Tasso Island"],
+  "Kambia": ["Bramaia", "Gbinle Dixing", "Magbema", "Mambolo", "Masungbala", "Samu", "Tonko Limba"],
+  "Karene": ["Buya Romende", "Dibia", "Sanda Magbolontor", "Libeisaygahun", "Sanda Loko", "Sanda Tendaren", "Sella Limba", "Tambakha"],
+  "Port Loko": ["Bureh Kasseh Makonteh", "Kaffu Bullom", "Koya", "Lokomasama", "Maforki", "Marampa", "Masimera", "Tinkatupa Makonteh Safroko (TMS)"],
+};

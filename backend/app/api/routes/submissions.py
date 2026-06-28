@@ -214,12 +214,33 @@ async def submit_report(
         sa_delete(SubmissionLocation).where(SubmissionLocation.submission_id == sub.id)
     )
 
-    # Section B districts: use the client-supplied list, else the union across activities.
+    # Section B geographic coverage: districts entered by the partner (fall back
+    # to the union across activities only if none were given).
     districts = body.districts or sorted(
         {d for a in body.activities for d in a.districts}
     )
+
+    # Resolve each submitted chiefdom to its district from the reference tables,
+    # so locations are stored as (district, chiefdom) pairs.
+    chief_to_district = {}
+    if body.chiefdoms:
+        from app.models.location import Chiefdom, District
+        rows = (
+            await db.execute(
+                select(Chiefdom.chiefdom_name, District.district_name)
+                .join(District, Chiefdom.district_id == District.id)
+                .where(Chiefdom.chiefdom_name.in_(body.chiefdoms))
+            )
+        ).all()
+        chief_to_district = {c: d for c, d in rows}
+
     for d in districts:
-        db.add(SubmissionLocation(submission_id=sub.id, district_name=d))
+        chiefs = [c for c in body.chiefdoms if chief_to_district.get(c) == d]
+        if chiefs:
+            for c in chiefs:
+                db.add(SubmissionLocation(submission_id=sub.id, district_name=d, chiefdom_name=c))
+        else:
+            db.add(SubmissionLocation(submission_id=sub.id, district_name=d))
 
     for a in body.activities:
         act = Activity(

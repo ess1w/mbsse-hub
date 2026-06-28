@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { FORM_OBJECTIVES, FOCUS_AREAS, ACTIVITY_TYPES, IMPLEMENTATION_STATUSES, GOV_COUNTERPARTS, REFERRAL_PATHWAYS, BUDGET_STATUSES, DISTRICTS, SECTIONS, TACTICS, INTERVENTION_LEVELS } from '../../data/formData.js';
+import { FORM_OBJECTIVES, FOCUS_AREAS, ACTIVITY_TYPES, IMPLEMENTATION_STATUSES, GOV_COUNTERPARTS, REFERRAL_PATHWAYS, BUDGET_STATUSES, DISTRICTS, SECTIONS, TACTICS, INTERVENTION_LEVELS, CHIEFDOMS_BY_DISTRICT } from '../../data/formData.js';
 import { C } from '../../tokens.js';
 import { submissionsApi, usesDemoData } from '../../api/client.js';
 
@@ -91,7 +91,8 @@ export default function ReportingForm({ user, setActivePage }) {
     plannedActivities: '',
     supportNeeded: '',
     project: '',
-    chiefdom: '',
+    districts: [],
+    chiefdoms: [],
     community: '',
   });
 
@@ -229,8 +230,8 @@ export default function ReportingForm({ user, setActivePage }) {
       return;
     }
 
-    // Section B districts: union of every activity's selected districts.
-    const coverageDistricts = [...new Set(activities.flatMap(a => a.districts || []))];
+    // Section B — geographic coverage entered directly by the partner.
+    const coverageDistricts = form.districts;
 
     // Normalise controlled vocab to the canonical values stored in the database
     // (charts group on these): focus areas without the "N. " prefix, objectives
@@ -297,6 +298,7 @@ export default function ReportingForm({ user, setActivePage }) {
     const payload = {
       project_title:         form.project || null,
       districts:             coverageDistricts,
+      chiefdoms:             form.chiefdoms,
       activities:            activityPayloads,
       key_results:           form.keyResults || null,
       observed_changes:      form.observedChanges || null,
@@ -366,13 +368,30 @@ export default function ReportingForm({ user, setActivePage }) {
       challenges: '', risks: '', mitigations: '',
       safeguardingCases: 'No', numCases: 0, referralPathway: '', actionTaken: '',
       plannedActivities: '', supportNeeded: '',
-      chiefdom: '', community: '',
+      districts: [], chiefdoms: [], community: '',
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setActivePage('partner-home');
   };
 
   const setField = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+  // Section B — district / chiefdom multi-select
+  const chiefdomsForDistricts = (districts) =>
+    districts.flatMap(d => CHIEFDOMS_BY_DISTRICT[d] || []);
+  const toggleDistrictB = (d) => setForm(f => {
+    const districts = f.districts.includes(d)
+      ? f.districts.filter(x => x !== d)
+      : [...f.districts, d];
+    // Drop any selected chiefdoms that no longer belong to a selected district
+    const allowed = new Set(chiefdomsForDistricts(districts));
+    const chiefdoms = f.chiefdoms.filter(c => allowed.has(c));
+    return { ...f, districts, chiefdoms };
+  });
+  const toggleChiefdomB = (c) => setForm(f => ({
+    ...f,
+    chiefdoms: f.chiefdoms.includes(c) ? f.chiefdoms.filter(x => x !== c) : [...f.chiefdoms, c],
+  }));
 
   const inp = (key, placeholder, type = 'text') => (
     <input value={form[key]} onChange={e => setField(key, type === 'number' ? Number(e.target.value) : e.target.value)}
@@ -631,25 +650,32 @@ export default function ReportingForm({ user, setActivePage }) {
                 {section('B', completedSections.B ? C.green700 : C.blue600, <>
                   <SecHeader id="B" label="Geographic coverage" required done={completedSections.B} />
                   {(() => {
-                    const coverage = [...new Set(activities.flatMap(a => a.districts || []))];
+                    const availableChiefdoms = chiefdomsForDistricts(form.districts);
+                    const chipBox = (children) => (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '6px 8px', border: `1px solid ${C.border}`, borderRadius: 5, minHeight: 34 }}>{children}</div>
+                    );
+                    const chip = (item, selected, onClick) => (
+                      <div key={item} onClick={onClick} style={{
+                        fontSize: 10, padding: '3px 8px', borderRadius: 3, cursor: 'pointer', userSelect: 'none',
+                        border: `1px solid ${selected ? C.blue600 : C.border}`,
+                        background: selected ? C.blue600 : C.white,
+                        color: selected ? C.white : C.textSec,
+                      }}>{item}</div>
+                    );
                     return (
-                      <>
-                        {fl('District(s)', (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, padding: '6px 8px', border: `1px solid ${C.border}`, borderRadius: 5, minHeight: 34, background: '#f8fafc' }}>
-                            {coverage.length === 0
-                              ? <span style={{ fontSize: 11, color: C.textMuted }}>Auto-derived from the district(s) you select for each activity in Section C.</span>
-                              : coverage.map(d => (
-                                  <span key={d} style={{ fontSize: 10, padding: '3px 8px', borderRadius: 3, background: C.blue600, color: C.white }}>{d}</span>
-                                ))
-                            }
-                          </div>
-                        ), 'auto-derived from Section C')}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginTop: 10 }}>
-                          {fl('Chiefdom', inp('chiefdom', 'Chiefdom name…'))}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {fl('District(s) *', chipBox(
+                          DISTRICTS.map(d => chip(d, form.districts.includes(d), () => toggleDistrictB(d)))
+                        ))}
+                        {fl('Chiefdom(s)', form.districts.length === 0
+                          ? <div style={{ fontSize: 11, color: C.textMuted, padding: '6px 2px' }}>Select one or more districts above to choose chiefdoms.</div>
+                          : chipBox(availableChiefdoms.map(c => chip(c, form.chiefdoms.includes(c), () => toggleChiefdomB(c))))
+                        )}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                           {fl('Community / Village', inp('community', 'Community or village…'))}
                           {fl('GPS coordinates', <div style={{ fontSize: 11, color: C.textMuted, paddingTop: 4 }}>Not captured</div>)}
                         </div>
-                      </>
+                      </div>
                     );
                   })()}
                   {!completedSections.B && (

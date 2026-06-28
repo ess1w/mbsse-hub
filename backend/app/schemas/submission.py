@@ -306,8 +306,9 @@ class SubmissionReportIn(BaseModel):
     # project for the org is used (or a default one is created).
     project_title: str | None = None
 
-    # Section B — geographic coverage (districts auto-derived from activities)
+    # Section B — geographic coverage entered by the partner
     districts: list[str] = Field(default_factory=list)
+    chiefdoms: list[str] = Field(default_factory=list)
 
     # Sections C–E — activities with nested per-district indicators + training
     activities: list[ActivityIn] = Field(default_factory=list)
