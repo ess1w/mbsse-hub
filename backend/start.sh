@@ -12,6 +12,15 @@ python seed_admin.py
 echo "==> Seeding partner organisations..."
 python seed_organisations.py
 
+echo "==> Seeding chiefdoms reference data..."
+python seed_chiefdoms.py
+
+echo "==> Seeding additional partner organisations (SEND SL, FOCUS 1000)..."
+python seed_new_partners.py
+
+echo "==> Seeding additional partner login accounts..."
+python seed_new_partner_users.py
+
 echo "==> Seeding demo users (partner + viewer)..."
 python seed_users.py
 
