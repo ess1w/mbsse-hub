@@ -26,6 +26,11 @@ class BulkSendResult(BaseModel):
     message: str
 
 
+class SendResult(BaseModel):
+    sent: bool
+    message: str
+
+
 class ReminderOut(BaseModel):
     model_config = {"from_attributes": True}
 
@@ -63,6 +68,65 @@ async def send_bulk_reminders(
             else "No new reminders to send (all partners already notified or no active period)."
         ),
     )
+
+
+@router.post("/send/{org_id}", response_model=SendResult)
+async def send_reminder(
+    org_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    """Admin-only: send a reminder email to a single organisation's focal person
+    for the active reporting period. Logged to the reminder table."""
+    from datetime import datetime, timezone
+    from app.models.reporting_period import ReportingPeriod
+    from app.models.organisation import Organisation
+    from app.services.email import send_email
+    from app.scheduler import _build_email
+    from app.core.config import get_settings
+
+    settings = get_settings()
+
+    period = await db.scalar(
+        select(ReportingPeriod).where(ReportingPeriod.is_active == True)
+    )
+    if not period:
+        raise HTTPException(status_code=400, detail="No active reporting period configured")
+
+    org = await db.get(Organisation, org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organisation not found")
+    if not org.email:
+        raise HTTPException(status_code=400, detail="No contact email on file for this organisation")
+
+    subject, html = _build_email(
+        org_name=org.org_name,
+        focal_name=org.focal_person or "Partner",
+        period_label=period.label,
+        deadline=period.deadline.isoformat(),
+        frontend_url=settings.frontend_url,
+    )
+
+    reminder = Reminder(
+        reporting_period_id=period.id,
+        organisation_id=org.org_id,
+        sent_to_email=org.email,
+        reminder_type="manual",
+        status="pending",
+        scheduled_for=datetime.now(timezone.utc),
+    )
+    db.add(reminder)
+    await db.flush()
+
+    try:
+        await send_email(to=org.email, subject=subject, html_body=html)
+        reminder.status = "sent"
+        reminder.sent_at = datetime.now(timezone.utc)
+        return SendResult(sent=True, message=f"Reminder sent to {org.email}")
+    except Exception as exc:
+        reminder.status = "failed"
+        reminder.error_message = str(exc)
+        return SendResult(sent=False, message=f"Could not send email: {exc}")
 
 
 @router.get("/", response_model=list[ReminderOut])

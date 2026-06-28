@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { C, pill, statusVariant, objColor } from '../../tokens.js';
-import { slaApi } from '../../api/client.js';
+import { slaApi, remindersApi } from '../../api/client.js';
 
 export default function PartnerDrawer({ partner: p, onClose, isAdmin = false, onEdit }) {
   useEffect(() => {
@@ -28,6 +28,22 @@ export default function PartnerDrawer({ partner: p, onClose, isAdmin = false, on
       loadSla();
     } catch (_) { /* surface silently; drawer is read-mostly */ }
     finally { setSlaBusy(false); }
+  };
+
+  // Send reminder email to this organisation
+  const [reminderBusy, setReminderBusy] = useState(false);
+  const [reminderMsg, setReminderMsg] = useState(null);
+  const sendReminder = async () => {
+    setReminderBusy(true);
+    setReminderMsg(null);
+    try {
+      const r = await remindersApi.send(p.id);
+      setReminderMsg({ ok: r.sent, text: r.message || (r.sent ? 'Reminder sent' : 'Could not send') });
+    } catch (e) {
+      setReminderMsg({ ok: false, text: e.message || 'Could not send reminder' });
+    } finally {
+      setReminderBusy(false);
+    }
   };
 
   const slaPill = (status) => {
@@ -181,9 +197,16 @@ export default function PartnerDrawer({ partner: p, onClose, isAdmin = false, on
               <button onClick={onEdit} style={{ padding: '6px 12px', background: C.white, color: C.blue600, border: `1px solid ${C.blue100}`, borderRadius: 6, fontSize: 11, cursor: 'pointer', fontWeight: 500 }}>Edit profile</button>
               <button style={{ padding: '6px 12px', background: C.white, color: C.textSec, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>View submissions</button>
               {p.submissionStatus === 'Not submitted' && (
-                <button style={{ padding: '6px 12px', background: C.white, color: C.red700, border: `1px solid ${C.red100}`, borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>Send reminder</button>
+                <button onClick={sendReminder} disabled={reminderBusy} style={{ padding: '6px 12px', background: C.white, color: C.red700, border: `1px solid ${C.red100}`, borderRadius: 6, fontSize: 11, cursor: reminderBusy ? 'default' : 'pointer' }}>
+                  {reminderBusy ? 'Sending…' : 'Send reminder'}
+                </button>
               )}
             </div>
+            {reminderMsg && (
+              <div style={{ marginTop: 8, fontSize: 11, color: reminderMsg.ok ? C.green : C.red700 }}>
+                {reminderMsg.ok ? '✓ ' : '⚠ '}{reminderMsg.text}
+              </div>
+            )}
           </div>
         )}
       </div>

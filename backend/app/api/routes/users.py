@@ -7,6 +7,7 @@ screen (name/org/status/invitePending) so the frontend can use them directly.
 New users are created with a default password (NEW_USER_PASSWORD); share it with
 the user and ask them to change it via Profile Settings after first login.
 """
+import logging
 import os
 from uuid import UUID
 
@@ -16,17 +17,59 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.deps import require_admin
 from app.core.security import hash_password
 from app.db.session import get_db
 from app.models.organisation import Organisation
 from app.models.user import User
 from app.services.audit import log_action
+from app.services.email import send_email
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["users"])
 
 NEW_USER_PASSWORD = os.getenv("NEW_USER_PASSWORD", "Welcome2026!")
 ROLES = {"admin", "viewer", "partner", "gem_coordinator"}
+
+
+def _build_invite_email(name: str, email: str, frontend_url: str) -> tuple[str, str]:
+    subject = "[MBSSE Hub] You've been invited to the SRGBV Coordination Hub"
+    html = f"""
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a1a2e">
+      <div style="background:#1F5C99;padding:16px 24px;border-radius:8px 8px 0 0">
+        <span style="color:#fff;font-size:16px;font-weight:600">MBSSE SRGBV Coordination Hub</span>
+      </div>
+      <div style="background:#fff;padding:24px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px">
+        <p>Dear {name},</p>
+        <p>An account has been created for you on the MBSSE SRGBV Coordination Hub.</p>
+        <p><strong>Email:</strong> {email}<br/>
+           <strong>Temporary password:</strong> {NEW_USER_PASSWORD}</p>
+        <p style="margin:24px 0">
+          <a href="{frontend_url}" style="background:#1F5C99;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:500">
+            Log in to the Hub →
+          </a>
+        </p>
+        <p>For your security, please change your password from Profile Settings after your first login.</p>
+        <hr style="border:none;border-top:1px solid #f1f5f9;margin:20px 0"/>
+        <p style="font-size:11px;color:#94a3b8">
+          Ministry of Basic and Senior Secondary Education, Sierra Leone<br/>SRGBV Coordination Hub
+        </p>
+      </div>
+    </div>
+    """
+    return subject, html
+
+
+async def _send_invite(user: User) -> None:
+    """Best-effort invite email — never fails the surrounding request."""
+    try:
+        subject, html = _build_invite_email(
+            user.full_name, user.email, get_settings().frontend_url
+        )
+        await send_email(to=user.email, subject=subject, html_body=html)
+    except Exception as exc:
+        logger.error("Invite email to %s failed: %s", user.email, exc)
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -129,6 +172,8 @@ async def create_user(
     db.add(user)
     await db.flush()
     await log_action(db, admin, "user.create", "user", user.id)
+    if body.send_invite:
+        await _send_invite(user)
     return _serialize(await _get_or_404(user.id, db))
 
 
@@ -210,6 +255,7 @@ async def resend_invite(
     u = await _get_or_404(user_id, db)
     u.email_verified = False
     await db.flush()
+    await _send_invite(u)
     await log_action(db, admin, "user.resend_invite", "user", u.id)
     return _serialize(u)
 

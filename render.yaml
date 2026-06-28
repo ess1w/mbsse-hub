@@ -53,6 +53,24 @@ services:
         value: admin@mbsse.gov.sl
       - key: ADMIN_PASSWORD
         generateValue: true
+      # Public URL of the frontend — used in reminder & invite email links.
+      # Update if your static site URL differs.
+      - key: FRONTEND_URL
+        value: https://mbsse-hub-frontend.onrender.com
+      # Email delivery (reminder + invite emails). Until these are set, emails are
+      # only logged to stdout (not delivered). Set in the Render dashboard.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: EMAIL_FROM
+        value: noreply@mbsse.gov.sl
+      - key: EMAIL_FROM_NAME
+        value: MBSSE Coordination Hub
       # Preset.io embedded analytics — set these manually in the Render dashboard
       # (never commit API credentials to git)
       - key: PRESET_API_TOKEN

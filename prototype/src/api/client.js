@@ -201,6 +201,8 @@ export const usersApi = {
 export const remindersApi = {
   /** Trigger an immediate bulk reminder send. Returns { sent, message }. */
   sendBulk: () => apiFetch('/reminders/send-bulk', { method: 'POST' }),
+  /** Send a reminder to a single organisation. Returns { sent, message }. */
+  send: (orgId) => apiFetch(`/reminders/send/${orgId}`, { method: 'POST' }),
   /** List the reminder log. */
   list: (params = {}) => {
     const qs = new URLSearchParams(params).toString();
