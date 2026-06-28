@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { C } from '../../tokens.js';
+import { usersApi, usesDemoData } from '../../api/client.js';
 
 // ── Role definitions ────────────────────────────────────────────────────────
 
@@ -108,6 +109,14 @@ const BLANK_FORM = { name: '', email: '', role: 'partner', org: '', sendInvite: 
 
 export default function UserManagement() {
   const [users, setUsers]               = useState(INIT_USERS);
+
+  // Load real users from the backend (falls back to demo list in demo mode)
+  useEffect(() => {
+    if (usesDemoData()) return;
+    usersApi.list()
+      .then(rows => { if (Array.isArray(rows)) setUsers(rows); })
+      .catch(() => {});
+  }, []);
   const [search, setSearch]             = useState('');
   const [filterRole, setFilterRole]     = useState('');
   const [filterStatus, setFilterStatus] = useState('All statuses');

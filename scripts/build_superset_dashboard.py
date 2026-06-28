@@ -526,7 +526,13 @@ WHERE s.status IN ('submitted', 'verified')
 GROUP BY 1
 ORDER BY 2 DESC""",
         "Activities by objective": f"""
-SELECT objective, COUNT(DISTINCT activity_id) AS activity_count
+SELECT
+  CASE objective_key
+    WHEN 'Obj 1' THEN '1. Promote Gender Equitable and Non-Violent Behaviours by Raising Awareness and Addressing Harmful Social Norms Perpetuating SRGBV'
+    WHEN 'Obj 2' THEN '2. Strengthen Institutional and Community Capacity to Prevent and Respond to SRGBV'
+    WHEN 'Obj 3' THEN '3. Ensure Sustained Commitment to SRGBV Prevention Through Policy Enforcement and Stakeholder Engagement'
+  END AS objective,
+  COUNT(DISTINCT activity_id) AS activity_count
 FROM (
   SELECT
     a.activity_id,
@@ -543,16 +549,16 @@ FROM (
         OR val ~* '^obj\\s*3'
         OR val ~* '^3[.:]'
         THEN 'Obj 3'
-    END AS objective
+    END AS objective_key
   FROM activities a
   JOIN submissions s ON s.id = a.submission_id
   CROSS JOIN LATERAL unnest(a.objectives) AS obj(val)
   WHERE s.status IN ('submitted', 'verified')
     AND {ACTIVE_PERIOD}
 ) mapped
-WHERE objective IS NOT NULL
-GROUP BY 1
-ORDER BY 1""",
+WHERE objective_key IS NOT NULL
+GROUP BY objective_key
+ORDER BY objective_key""",
         "Beneficiaries over time": f"""
 SELECT rp.label AS period, 'Female' AS gender,
        SUM(oi.students_inschool_f + oi.community_members_f) AS beneficiaries

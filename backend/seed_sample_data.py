@@ -78,14 +78,18 @@ async def seed_period(conn, period_cfg, admin_id):
         period_id = str(period["id"])
         print(f"  Found existing period: {label} ({period_id})")
 
+    # Real pilot partners must not receive fake demo submissions.
+    REAL_PARTNERS = ['SEND SIERRA LEONE', 'FOCUS 1000']
+
     # ── Fetch orgs without a submission for this period ───────────────────────
     all_orgs = await conn.fetch(
         """SELECT org_id, org_name FROM organisations
            WHERE org_id NOT IN (
                SELECT org_id FROM submissions WHERE reporting_period_id = $1
            )
+           AND org_name <> ALL($2::text[])
            ORDER BY org_name""",
-        period_id,
+        period_id, REAL_PARTNERS,
     )
 
     if not all_orgs:

@@ -236,8 +236,34 @@ WHERE s.status IN ('submitted', 'verified')
 GROUP BY 1, 2, 3
 """
 
+OBJECTIVE_LABELS = {
+    "Obj 1": (
+        "1. Promote Gender Equitable and Non-Violent Behaviours by Raising "
+        "Awareness and Addressing Harmful Social Norms Perpetuating SRGBV"
+    ),
+    "Obj 2": (
+        "2. Strengthen Institutional and Community Capacity to Prevent "
+        "and Respond to SRGBV"
+    ),
+    "Obj 3": (
+        "3. Ensure Sustained Commitment to SRGBV Prevention Through Policy "
+        "Enforcement and Stakeholder Engagement"
+    ),
+}
+
+
+def _objective_label_case(column: str = "objective_key") -> str:
+    whens = "\n".join(
+        f"      WHEN '{key}' THEN '{text.replace(chr(39), chr(39) + chr(39))}'"
+        for key, text in OBJECTIVE_LABELS.items()
+    )
+    return f"    CASE {column}\n{whens}\n    END"
+
+
 ACTIVITIES_BY_OBJECTIVE = f"""
-SELECT objective, COUNT(DISTINCT activity_id) AS activity_count
+SELECT
+  {_objective_label_case("objective_key")} AS objective,
+  COUNT(DISTINCT activity_id) AS activity_count
 FROM (
   SELECT
     a.activity_id,
@@ -254,16 +280,16 @@ FROM (
         OR val ~* '^obj\\s*3'
         OR val ~* '^3[.:]'
         THEN 'Obj 3'
-    END AS objective
+    END AS objective_key
   FROM activities a
   JOIN submissions s ON s.id = a.submission_id
   CROSS JOIN LATERAL unnest(a.objectives) AS obj(val)
   WHERE s.status IN ('submitted', 'verified')
     AND {ACTIVE_PERIOD}
 ) mapped
-WHERE objective IS NOT NULL
-GROUP BY 1
-ORDER BY 1
+WHERE objective_key IS NOT NULL
+GROUP BY objective_key
+ORDER BY objective_key
 """
 
 SUBMISSION_STATUS_CURRENT_PERIOD = f"""
@@ -989,7 +1015,7 @@ def main() -> None:
                 )
                 print(f"fixed {ver_chart_name} pie (Submitted / Verified)")
 
-    # Activities by objective — exactly three bars (Obj 1/2/3), no full-text duplicates
+    # Activities by objective — three bars with full objective text on axis + tooltip
     obj_ds_name = "Activities by objective"
     if obj_ds_name in ds_ids:
         obj_ds = ds_ids[obj_ds_name]
@@ -1024,7 +1050,7 @@ def main() -> None:
                     "echarts_timeseries_bar",
                     obj_params,
                 )
-                print(f"fixed {obj_chart_name} bar (3 objectives only)")
+                print(f"fixed {obj_chart_name} bar (full objective labels + tooltip)")
             else:
                 obj_chart_name = find_chart_name(
                     charts,
@@ -1039,7 +1065,7 @@ def main() -> None:
                         obj_params,
                         charts,
                     )
-                    print(f"fixed {obj_chart_name} bar (3 objectives only)")
+                    print(f"fixed {obj_chart_name} bar (full objective labels + tooltip)")
 
     # New / updated stacked charts
     for spec in NEW_CHARTS:
