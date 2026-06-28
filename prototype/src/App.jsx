@@ -12,6 +12,7 @@ import Submissions from './components/submissions/Submissions.jsx';
 import AnalyticsDashboard from './components/analytics/AnalyticsDashboard.jsx';
 import ProfileSettings from './components/profile/ProfileSettings.jsx';
 import PartnerHome from './components/PartnerHome.jsx';
+import AdminHome from './components/AdminHome.jsx';
 import GemHome from './components/GemHome.jsx';
 import Login from './components/Login.jsx';
 import { C } from './tokens.js';
@@ -26,7 +27,7 @@ export default function App() {
 
   function handleLogin(userData) {
     setUser(userData);
-    const landingByRole = { partner: 'partner-home', gem_coordinator: 'gem-home' };
+    const landingByRole = { partner: 'partner-home', gem_coordinator: 'gem-home', admin: 'admin-home' };
     setActivePage(landingByRole[userData.role] ?? 'dashboard');
   }
 
@@ -68,6 +69,7 @@ export default function App() {
         {activePage === 'analytics'   && <AnalyticsDashboard />}
         {activePage === 'profile'     && <ProfileSettings user={user} />}
         {activePage === 'partner-home' && <PartnerHome setActivePage={setActivePage} user={user} />}
+        {activePage === 'admin-home'   && <AdminHome setActivePage={setActivePage} user={user} />}
         {activePage === 'gem-home'     && <GemHome setActivePage={setActivePage} user={user} />}
       </div>
     </div>

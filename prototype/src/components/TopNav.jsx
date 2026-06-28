@@ -6,6 +6,10 @@ export default function TopNav({ activePage, setActivePage, user, onLogout }) {
   const isViewer  = user?.role === 'viewer';
   const isPartner = user?.role === 'partner';
 
+  // Role-aware home page — the title acts as the Home link
+  const homePage = { admin: 'admin-home', partner: 'partner-home', gem_coordinator: 'gem-home' }[user?.role] ?? 'dashboard';
+  const goHome = () => setActivePage(homePage);
+
   const nav = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'directory', label: 'Partner Directory' },
@@ -45,18 +49,25 @@ export default function TopNav({ activePage, setActivePage, user, onLogout }) {
         position: 'sticky', top: 4, zIndex: 100,
         boxShadow: '0 1px 3px rgba(0,0,0,.06)',
       }}>
-        {/* Left — coat of arms + logo + nav */}
+        {/* Left — coat of arms + logo (links Home) + nav */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img
             src={coatOfArms}
             alt="Coat of Arms of Sierra Leone"
-            style={{ height: 30, width: 'auto', flexShrink: 0 }}
+            onClick={goHome}
+            style={{ height: 30, width: 'auto', flexShrink: 0, cursor: 'pointer' }}
           />
           <div style={{
             background: C.blue600, color: C.white, fontSize: 11, fontWeight: 700,
             padding: '3px 10px', borderRadius: 4, letterSpacing: '0.04em',
           }}>MBSSE</div>
-          <span style={{ fontSize: 13, fontWeight: 500, color: C.text }}>
+          <span
+            onClick={goHome}
+            title="Go to home"
+            style={{ fontSize: 13, fontWeight: 500, color: C.text, cursor: 'pointer' }}
+            onMouseEnter={e => e.currentTarget.style.color = C.blue600}
+            onMouseLeave={e => e.currentTarget.style.color = C.text}
+          >
             SRGBV Coordination Hub
           </span>
 

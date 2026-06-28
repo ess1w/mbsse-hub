@@ -1,8 +1,9 @@
 import React from 'react';
 import { C } from '../tokens.js';
 
+// 'Home' is reached by clicking the SRGBV Coordination Hub title in the top nav.
 const NAV = [
-  { section: 'Main', items: ['Home', 'Dashboard', 'Partner directory', 'Reporting form', 'GEM Report', 'Submissions'] },
+  { section: 'Main', items: ['Dashboard', 'Partner directory', 'Reporting form', 'GEM Report', 'Submissions'] },
   { section: 'Reports', items: ['Activity reports', 'Analytics', 'Export data'] },
   { section: 'Admin', items: ['User management', 'Form settings', 'System settings'] },
 ];

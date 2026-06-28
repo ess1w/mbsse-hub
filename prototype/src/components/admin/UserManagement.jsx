@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { C } from '../../tokens.js';
-import { usersApi, usesDemoData } from '../../api/client.js';
+import { usersApi, organisationsApi, usesDemoData } from '../../api/client.js';
 
 // ── Role definitions ────────────────────────────────────────────────────────
 
@@ -109,12 +109,23 @@ const BLANK_FORM = { name: '', email: '', role: 'partner', org: '', sendInvite: 
 
 export default function UserManagement() {
   const [users, setUsers]               = useState(INIT_USERS);
+  const [orgOptions, setOrgOptions]     = useState(ORGS);
+  const demo = usesDemoData();
 
-  // Load real users from the backend (falls back to demo list in demo mode)
-  useEffect(() => {
-    if (usesDemoData()) return;
+  const reloadUsers = () =>
     usersApi.list()
       .then(rows => { if (Array.isArray(rows)) setUsers(rows); })
+      .catch(() => {});
+
+  // Load real users + organisations from the backend (demo list as fallback)
+  useEffect(() => {
+    if (demo) return;
+    reloadUsers();
+    organisationsApi.list()
+      .then(rows => {
+        const names = (Array.isArray(rows) ? rows : []).map(o => o.org_name).filter(Boolean).sort();
+        if (names.length) setOrgOptions(names);
+      })
       .catch(() => {});
   }, []);
   const [search, setSearch]             = useState('');
@@ -191,52 +202,93 @@ export default function UserManagement() {
     return errs;
   };
 
-  const savePanel = () => {
+  const savePanel = async () => {
     const errs = validate();
     if (Object.keys(errs).length) { setPanelErrors(errs); return; }
 
-    if (editUser) {
-      setUsers(prev => prev.map(u => u.id === editUser.id
-        ? { ...u, name: panelForm.name.trim(), email: panelForm.email.trim(), role: panelForm.role, org: panelForm.role === 'partner' ? panelForm.org : null, invitePending: u.invitePending }
-        : u
-      ));
-      showToast('User updated successfully', 'ok');
-    } else {
-      setUsers(prev => [...prev, {
-        id: _nextId++,
-        name:         panelForm.name.trim(),
-        email:        panelForm.email.trim(),
-        role:         panelForm.role,
-        org:          panelForm.role === 'partner' ? panelForm.org : null,
-        status:       'Active',
-        lastLogin:    null,
-        invitePending: panelForm.sendInvite,
-      }]);
-      showToast(panelForm.sendInvite ? 'User added — invitation email sent' : 'User added', 'ok');
+    const org = panelForm.role === 'partner' ? panelForm.org : null;
+
+    // Demo mode — keep local-only behaviour
+    if (demo) {
+      if (editUser) {
+        setUsers(prev => prev.map(u => u.id === editUser.id
+          ? { ...u, name: panelForm.name.trim(), email: panelForm.email.trim(), role: panelForm.role, org, invitePending: u.invitePending }
+          : u));
+        showToast('User updated successfully', 'ok');
+      } else {
+        setUsers(prev => [...prev, {
+          id: _nextId++, name: panelForm.name.trim(), email: panelForm.email.trim(),
+          role: panelForm.role, org, status: 'Active', lastLogin: null, invitePending: panelForm.sendInvite,
+        }]);
+        showToast(panelForm.sendInvite ? 'User added — invitation email sent' : 'User added', 'ok');
+      }
+      setPanelOpen(false);
+      return;
     }
-    setPanelOpen(false);
+
+    try {
+      if (editUser) {
+        await usersApi.update(editUser.id, { name: panelForm.name.trim(), email: panelForm.email.trim(), role: panelForm.role, org });
+        showToast('User updated successfully', 'ok');
+      } else {
+        await usersApi.create({ name: panelForm.name.trim(), email: panelForm.email.trim(), role: panelForm.role, org, send_invite: panelForm.sendInvite });
+        showToast('User added', 'ok');
+      }
+      await reloadUsers();
+      setPanelOpen(false);
+    } catch (e) {
+      showToast(e.message || 'Save failed', 'warn');
+    }
   };
 
-  const toggleStatus = (id) => {
-    setUsers(prev => prev.map(u => u.id === id
-      ? { ...u, status: u.status === 'Active' ? 'Inactive' : 'Active', invitePending: false }
-      : u
-    ));
+  const toggleStatus = async (id) => {
     const u = users.find(x => x.id === id);
-    showToast(`${u?.name} ${u?.status === 'Active' ? 'deactivated' : 'reactivated'}`, 'ok');
     setConfirmId(null);
+    if (demo) {
+      setUsers(prev => prev.map(x => x.id === id ? { ...x, status: x.status === 'Active' ? 'Inactive' : 'Active', invitePending: false } : x));
+      showToast(`${u?.name} ${u?.status === 'Active' ? 'deactivated' : 'reactivated'}`, 'ok');
+      return;
+    }
+    try {
+      if (u?.status === 'Active') await usersApi.deactivate(id);
+      else                        await usersApi.reactivate(id);
+      await reloadUsers();
+      showToast(`${u?.name} ${u?.status === 'Active' ? 'deactivated' : 'reactivated'}`, 'ok');
+    } catch (e) {
+      showToast(e.message || 'Action failed', 'warn');
+    }
   };
 
-  const removeUser = (id) => {
+  const removeUser = async (id) => {
     const u = users.find(x => x.id === id);
-    setUsers(prev => prev.filter(x => x.id !== id));
     setExpandedId(null);
-    showToast(`${u?.name} removed`, 'warn');
+    if (demo) {
+      setUsers(prev => prev.filter(x => x.id !== id));
+      showToast(`${u?.name} removed`, 'warn');
+      return;
+    }
+    try {
+      await usersApi.remove(id);
+      await reloadUsers();
+      showToast(`${u?.name} removed`, 'warn');
+    } catch (e) {
+      showToast(e.message || 'Delete failed', 'warn');
+    }
   };
 
-  const resendInvite = (id) => {
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, invitePending: true } : u));
-    showToast('Invitation resent', 'ok');
+  const resendInvite = async (id) => {
+    if (demo) {
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, invitePending: true } : u));
+      showToast('Invitation resent', 'ok');
+      return;
+    }
+    try {
+      await usersApi.resendInvite(id);
+      await reloadUsers();
+      showToast('Invitation resent', 'ok');
+    } catch (e) {
+      showToast(e.message || 'Action failed', 'warn');
+    }
   };
 
   const showToast = (msg, type) => {
@@ -495,7 +547,7 @@ export default function UserManagement() {
                     style={{ width: '100%', height: 36, border: `1px solid ${panelErrors.org ? C.red500 : C.border}`, borderRadius: 6, padding: '0 10px', fontSize: 12, color: panelForm.org ? C.text : C.textMuted }}
                   >
                     <option value="">Select organisation…</option>
-                    {ORGS.map(o => <option key={o} value={o}>{o}</option>)}
+                    {orgOptions.map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
                   {panelErrors.org && <div style={{ fontSize: 10, color: C.red700, marginTop: 3 }}>{panelErrors.org}</div>}
                 </div>
