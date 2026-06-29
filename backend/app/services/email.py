@@ -2,10 +2,10 @@
 Email service.
 
 Delivery backend is chosen automatically:
-  1. BREVO_API_KEY set  → send via Brevo's HTTPS API (works on Render free tier,
-     where outbound SMTP ports are blocked).
-  2. else SMTP_HOST set → send via SMTP (paid instance / VPS).
-  3. else                → log to stdout (local dev / unconfigured).
+  1. POSTMARK_SERVER_TOKEN set → send via Postmark's HTTPS API (works on Render
+     free tier, where outbound SMTP ports are blocked).
+  2. else SMTP_HOST set        → send via SMTP (paid instance / VPS).
+  3. else                       → log to stdout (local dev / unconfigured).
 
 Raises on failure so the caller can log the error.
 """
@@ -20,42 +20,43 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-BREVO_ENDPOINT = "https://api.brevo.com/v3/smtp/email"
+POSTMARK_ENDPOINT = "https://api.postmarkapp.com/email"
 
 
-async def _send_via_brevo(to: str, subject: str, html_body: str) -> None:
+async def _send_via_postmark(to: str, subject: str, html_body: str) -> None:
     payload = {
-        "sender": {"name": settings.email_from_name, "email": settings.email_from},
-        "to": [{"email": to}],
-        "subject": subject,
-        "htmlContent": html_body,
+        "From": f"{settings.email_from_name} <{settings.email_from}>",
+        "To": to,
+        "Subject": subject,
+        "HtmlBody": html_body,
+        "MessageStream": "outbound",
     }
     headers = {
-        "api-key": settings.brevo_api_key,
-        "content-type": "application/json",
-        "accept": "application/json",
+        "X-Postmark-Server-Token": settings.postmark_server_token,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
     }
     async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.post(BREVO_ENDPOINT, json=payload, headers=headers)
+        resp = await client.post(POSTMARK_ENDPOINT, json=payload, headers=headers)
     if resp.status_code >= 300:
-        raise RuntimeError(f"Brevo API error {resp.status_code}: {resp.text}")
+        raise RuntimeError(f"Postmark API error {resp.status_code}: {resp.text}")
 
 
 async def send_email(to: str, subject: str, html_body: str) -> None:
-    """Send an HTML email via the configured backend (Brevo API / SMTP / stdout).
+    """Send an HTML email via the configured backend (Postmark API / SMTP / stdout).
 
     Configuration (env vars):
-        BREVO_API_KEY   — send via Brevo HTTPS API (preferred on Render free tier)
+        POSTMARK_SERVER_TOKEN — send via Postmark HTTPS API (preferred on Render free tier)
         SMTP_HOST       — mail server hostname (SMTP fallback)
         SMTP_PORT       — port (default 587)
         SMTP_USER       — login username / address
         SMTP_PASSWORD   — login password or app-password
         SMTP_USE_TLS    — true|false (default true)
-        EMAIL_FROM      — From: address (must be a verified sender in Brevo)
+        EMAIL_FROM      — From: address (must be a verified sender signature in Postmark)
         EMAIL_FROM_NAME — Friendly sender name
     """
-    if settings.brevo_api_key:
-        await _send_via_brevo(to, subject, html_body)
+    if settings.postmark_server_token:
+        await _send_via_postmark(to, subject, html_body)
         return
 
     if not settings.smtp_host:
