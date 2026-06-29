@@ -56,7 +56,7 @@ export default function ProfileSettings({ user }) {
     }
   };
 
-  const PasswordCard = () => (
+  const passwordCard = (
     <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, padding: '16px 20px', marginTop: 20 }}>
       <div style={{ fontSize: 10, fontWeight: 600, color: C.textSec, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 14 }}>
         Change Password
@@ -213,7 +213,7 @@ export default function ProfileSettings({ user }) {
           </div>
         </div>
       </div>
-      <PasswordCard />
+      {passwordCard}
     </main>
   );
 
@@ -376,7 +376,7 @@ export default function ProfileSettings({ user }) {
         </form>
       </div>
 
-      <PasswordCard />
+      {passwordCard}
     </main>
   );
 }
