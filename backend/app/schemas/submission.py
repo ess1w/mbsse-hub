@@ -376,6 +376,12 @@ class ActivitySummary(BaseModel):
     focus_areas: list[str] = Field(default_factory=list)
     focus_area_other: str | None = None
     objectives: list[str] = Field(default_factory=list)
+    tactics: list[str] = Field(default_factory=list)
+    intervention_levels: list[str] = Field(default_factory=list)
+    description: str | None = None
+    planned_vs_actual: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
     districts: list[str] = Field(default_factory=list)
     students_f: int = 0
     students_m: int = 0
@@ -410,12 +416,15 @@ class UploadedFileOut(BaseModel):
 
 class SubmissionDetail(SubmissionOut):
     """Full verification view — every field an admin needs to review a report."""
+    # Section A — project
+    project_title: str | None = None
     # Section F — results narrative
     key_results: str | None = None
     observed_changes: str | None = None
     early_outcomes: str | None = None
     # Section G — finance
     expenditure: float | None = None
+    expenditure_currency: str | None = None
     budget_util: str | None = None
     # Section H — coordination
     gov_engaged: bool | None = None

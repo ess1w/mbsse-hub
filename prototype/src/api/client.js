@@ -222,6 +222,8 @@ export const submissionsApi = {
     return apiFetch(`/submissions/${qs ? '?' + qs : ''}`);
   },
   get: (id) => apiFetch(`/submissions/${id}`),
+  /** The caller's submission for the active period (or null) — used to pre-fill the form for editing. */
+  getCurrent: () => apiFetch('/submissions/current'),
   /** Consolidated submission-level report submit (resolves period/project server-side). */
   submitReport: (data) => apiFetch('/submissions/submit-report', { method: 'POST', body: JSON.stringify(data) }),
   create: (data) => apiFetch('/submissions/', { method: 'POST', body: JSON.stringify(data) }),

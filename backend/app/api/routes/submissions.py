@@ -175,9 +175,9 @@ async def submit_report(
             proj.project_title = body.project_title
 
     # ── Upsert submission for (org, period) ───────────────────────────────────
-    # Submission-level scalar columns only — activities/districts handled below.
+    # Submission-level scalar columns only — activities/districts/chiefdoms handled below.
     data = body.model_dump(
-        exclude={"org_id", "activities", "districts"}, exclude_unset=True
+        exclude={"org_id", "activities", "districts", "chiefdoms"}, exclude_unset=True
     )
     from sqlalchemy import delete as sa_delete
     sub = await db.scalar(
@@ -187,12 +187,15 @@ async def submit_report(
         )
     )
     if sub:
+        # A verified report is locked — partners can no longer edit it.
+        if sub.status == "verified" and user.role == "partner":
+            raise HTTPException(
+                status_code=409,
+                detail="This report has been verified and can no longer be edited.",
+            )
         for k, v in data.items():
             setattr(sub, k, v)
-        # Remove stale files so a resubmission doesn't accumulate old uploads
-        await db.execute(
-            sa_delete(UploadedFile).where(UploadedFile.submission_id == sub.id)
-        )
+        # Existing uploaded files are kept on edit; any new files are appended below.
     else:
         sub = Submission(
             org_id=org_id,
@@ -332,34 +335,13 @@ async def create_submission(
 
 # ── Read ──────────────────────────────────────────────────────────────────────
 
-@router.get("/{submission_id}", response_model=SubmissionDetail)
-async def get_submission(
-    submission_id: UUID,
-    db: AsyncSession = Depends(get_db),
-    user: User = Depends(require_any),
-):
-    s = (
-        await db.scalars(
-            select(Submission)
-            .options(
-                joinedload(Submission.organisation),
-                joinedload(Submission.reporting_period),
-                selectinload(Submission.activities).selectinload(Activity.output_indicators),
-                selectinload(Submission.activities).selectinload(Activity.training_rows),
-                selectinload(Submission.locations),
-                selectinload(Submission.files),
-            )
-            .where(Submission.id == submission_id)
-        )
-    ).unique().first()
-    if not s:
-        raise HTTPException(status_code=404, detail="Submission not found")
-    _check_partner_owns(user, s)
-
+def _build_detail(s: Submission) -> SubmissionDetail:
+    """Build the full SubmissionDetail (used for verification and form edit)."""
     out = SubmissionDetail.model_validate(s)
-    out.org_name     = s.organisation.org_name if s.organisation else None
-    out.period_label = s.reporting_period.label if s.reporting_period else None
-    out.focus_areas  = sorted({fa for a in s.activities for fa in (a.focus_areas or [])})
+    out.org_name      = s.organisation.org_name if s.organisation else None
+    out.period_label  = s.reporting_period.label if s.reporting_period else None
+    out.project_title = s.project.project_title if s.project else None
+    out.focus_areas   = sorted({fa for a in s.activities for fa in (a.focus_areas or [])})
 
     def _sum(rows, attr):
         return sum((getattr(r, attr) or 0) for r in rows)
@@ -376,6 +358,12 @@ async def get_submission(
             focus_areas=a.focus_areas or [],
             focus_area_other=a.focus_area_other,
             objectives=a.objectives or [],
+            tactics=a.tactics or [],
+            intervention_levels=a.intervention_levels or [],
+            description=a.description,
+            planned_vs_actual=a.planned_vs_actual,
+            start_date=a.start_date,
+            end_date=a.end_date,
             districts=a.districts or [],
             # Aggregate across the per-district output_indicators rows
             students_f=_sum(a.output_indicators, "students_inschool_f"),
@@ -407,6 +395,62 @@ async def get_submission(
     out.locations = [LocationSummary.model_validate(loc) for loc in s.locations]
     out.files = [UploadedFileOut.model_validate(f) for f in s.files]
     return out
+
+
+_DETAIL_LOADS = (
+    joinedload(Submission.organisation),
+    joinedload(Submission.reporting_period),
+    joinedload(Submission.project),
+    selectinload(Submission.activities).selectinload(Activity.output_indicators),
+    selectinload(Submission.activities).selectinload(Activity.training_rows),
+    selectinload(Submission.locations),
+    selectinload(Submission.files),
+)
+
+
+@router.get("/current", response_model=SubmissionDetail | None)
+async def get_current_submission(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_any),
+):
+    """The caller's organisation submission for the active reporting period, or
+    null if none exists yet. Used to pre-fill the reporting form for editing."""
+    org_id = user.organisation_id
+    if not org_id:
+        return None
+    period_id = await db.scalar(
+        select(ReportingPeriod.id).where(ReportingPeriod.is_active.is_(True)).limit(1)
+    )
+    if not period_id:
+        return None
+    s = (
+        await db.scalars(
+            select(Submission).options(*_DETAIL_LOADS).where(
+                Submission.org_id == org_id,
+                Submission.reporting_period_id == period_id,
+            )
+        )
+    ).unique().first()
+    if not s:
+        return None
+    return _build_detail(s)
+
+
+@router.get("/{submission_id}", response_model=SubmissionDetail)
+async def get_submission(
+    submission_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_any),
+):
+    s = (
+        await db.scalars(
+            select(Submission).options(*_DETAIL_LOADS).where(Submission.id == submission_id)
+        )
+    ).unique().first()
+    if not s:
+        raise HTTPException(status_code=404, detail="Submission not found")
+    _check_partner_owns(user, s)
+    return _build_detail(s)
 
 
 # ── Save draft (partial update) ────────────────────────────────────────────────

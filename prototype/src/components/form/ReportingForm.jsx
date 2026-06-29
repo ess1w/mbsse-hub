@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { FORM_OBJECTIVES, FOCUS_AREAS, ACTIVITY_TYPES, IMPLEMENTATION_STATUSES, GOV_COUNTERPARTS, REFERRAL_PATHWAYS, BUDGET_STATUSES, DISTRICTS, SECTIONS, TACTICS, INTERVENTION_LEVELS, CHIEFDOMS_BY_DISTRICT } from '../../data/formData.js';
 import { C } from '../../tokens.js';
 import { submissionsApi, usesDemoData } from '../../api/client.js';
@@ -141,6 +141,87 @@ export default function ReportingForm({ user, setActivePage }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [successToast, setSuccessToast] = useState(false);
+
+  // Edit mode — when the partner already has a submission for the active period
+  const [editMode, setEditMode] = useState(false);
+  const [locked, setLocked]     = useState(false);   // verified → read-only
+  const [existingFiles, setExistingFiles] = useState([]);   // retained on edit
+
+  // Rehydrate the form from an existing submission (reverses the vocab codes
+  // and rebuilds the nested per-district indicators + training structures).
+  const hydrateForm = (sub) => {
+    const OBJ_FROM_CODE = Object.fromEntries(FORM_OBJECTIVES.map((o, i) => [`obj${i + 1}`, o.full]));
+    const TAC_FROM_CODE = Object.fromEntries(TACTICS.map((t, i) => [`tac${i + 1}`, t]));
+    const FA_BY_BARE = {};
+    FOCUS_AREAS.forEach(f => { FA_BY_BARE[f.replace(/^\s*\d+\.\s*/, '')] = f; });
+    const numFocus = (lbl) => FA_BY_BARE[lbl] || lbl;
+
+    const locs = sub.locations || [];
+    setForm(f => ({
+      ...f,
+      project: sub.project_title || '',
+      districts: [...new Set(locs.map(l => l.district_name).filter(Boolean))],
+      chiefdoms: [...new Set(locs.map(l => l.chiefdom_name).filter(Boolean))],
+      keyResults: sub.key_results || '', observedChanges: sub.observed_changes || '', earlyOutcomes: sub.early_outcomes || '',
+      expenditure: sub.expenditure != null ? String(sub.expenditure) : '',
+      currency: sub.expenditure_currency || 'USD', budgetStatus: sub.budget_util || '',
+      govEngaged: sub.gov_engaged ? 'Yes' : 'No', govCounterpart: sub.gov_engaged_list || '',
+      coordinationMeetings: sub.coordination_meetings || 0, keyPartners: sub.key_partners || '',
+      challenges: sub.challenges || '', risks: sub.risks || '', mitigations: sub.mitigations || '',
+      safeguardingCases: sub.safeguarding_cases ? 'Yes' : 'No', numCases: sub.cases_reported || 0,
+      referralPathway: sub.referral_pathway || '', actionTaken: sub.safeguarding_action || '',
+      plannedActivities: sub.planned_activities || '', supportNeeded: sub.support_needed || '',
+    }));
+
+    const acts = (sub.activities || []).map((a, idx) => {
+      const ind = {};
+      (a.indicators || []).forEach(row => {
+        const { district_name, ...keys } = row;
+        ind[district_name || ''] = { ...blankIndicators(), ...keys };
+      });
+      const training = {};
+      (a.training || []).forEach(r => {
+        const d = r.district_name || '';
+        const fa = numFocus(r.focus_area);
+        training[d] = training[d] || {};
+        training[d][fa] = { ...(training[d][fa] || {}), [`${r.cadre}_f`]: r.female || 0, [`${r.cadre}_m`]: r.male || 0 };
+      });
+      return {
+        _id: Date.now() + idx,
+        focusAreas: (a.focus_areas || []).map(numFocus),
+        focusAreaOther: a.focus_area_other || '',
+        objectives: (a.objectives || []).map(c => OBJ_FROM_CODE[c] || c),
+        tactics: (a.tactics || []).map(c => TAC_FROM_CODE[c] || c),
+        districts: a.districts || [],
+        activityType: a.activity_type || '',
+        interventionLevels: a.intervention_levels || [],
+        activityTitle: a.activity_title || '',
+        implementationStatus: a.implementation_status || '',
+        description: a.description || '',
+        plannedVsActual: a.planned_vs_actual || '',
+        startDate: a.start_date || '',
+        endDate: a.end_date || '',
+        ind, training,
+      };
+    });
+    if (acts.length) { setActivities(acts); setActiveActivityIdx(0); }
+  };
+
+  useEffect(() => {
+    if (usesDemoData() || !user?.organisation_id) return;
+    let cancelled = false;
+    submissionsApi.getCurrent()
+      .then(sub => {
+        if (cancelled || !sub) return;   // no existing submission → blank form
+        hydrateForm(sub);
+        setEditMode(true);
+        setLocked(sub.status === 'verified');
+        setExistingFiles(sub.files || []);
+        setCompletedPages([1, 2, 3]);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   // File upload state (Section K)
   const [uploadedPhotos, setUploadedPhotos] = useState([]);
@@ -612,6 +693,19 @@ export default function ReportingForm({ user, setActivePage }) {
         {/* FORM BODY */}
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ flex: 1, padding: '20px 24px' }}>
+            {/* Edit / locked banner */}
+            {editMode && (
+              <div style={{
+                marginBottom: 12, padding: '9px 14px', borderRadius: 6, fontSize: 12,
+                background: locked ? C.amberBg : C.blueBg,
+                border: `1px solid ${locked ? C.amber100 : C.blue100}`,
+                color: locked ? C.amber700 : C.blue900,
+              }}>
+                {locked
+                  ? '🔒 This report has been verified and can no longer be edited.'
+                  : '✎ You are editing your submitted report for this period. Submitting again will update it.'}
+              </div>
+            )}
             {/* Report heading */}
             <div style={{ marginBottom: 16, paddingBottom: 14, borderBottom: `1px solid ${C.borderLight}` }}>
               <div style={{ fontSize: 16, fontWeight: 600 }}>Bi-monthly Activity Report — March / April 2026</div>
@@ -1136,6 +1230,13 @@ export default function ReportingForm({ user, setActivePage }) {
                 {section('K', C.textMuted, <>
                   <SecHeader id="K" label="Evidence uploads" />
 
+                  {/* Files already attached on a previous submission (kept on edit) */}
+                  {existingFiles.length > 0 && (
+                    <div style={{ marginBottom: 12, padding: '8px 12px', background: C.blueBg, border: `1px solid ${C.blue100}`, borderRadius: 5, fontSize: 11, color: C.blue900 }}>
+                      {existingFiles.length} file{existingFiles.length !== 1 ? 's' : ''} already attached to this report and will be kept: {existingFiles.map(f => f.original_filename).join(', ')}. Add more below if needed.
+                    </div>
+                  )}
+
                   {/* Data protection warning */}
                   <div style={{ background: C.redBg, border: `1px solid ${C.red100}`, borderRadius: 5, padding: '8px 12px', fontSize: 11, color: C.red900, marginBottom: 14, lineHeight: 1.5 }}>
                     <strong>Data protection — please read before uploading.</strong> Do not upload any documents or photos containing: names of survivors, victims, or at-risk individuals; case details or incident descriptions; identifiable photos of children; or any personal data about individuals. All uploads must be de-identified.
@@ -1304,7 +1405,10 @@ export default function ReportingForm({ user, setActivePage }) {
                 <button onClick={nextPage} style={{ padding: '8px 20px', background: C.blue600, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>Next page →</button>
               )}
               {currentPage === 3 && !submitted && (
-                <button onClick={handleSubmit} disabled={submitting} style={{ padding: '8px 20px', background: submitting ? C.textMuted : C.green700, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: submitting ? 'not-allowed' : 'pointer' }}>{submitting ? 'Submitting…' : 'Submit report ✓'}</button>
+                <button onClick={handleSubmit} disabled={submitting || locked} title={locked ? 'This verified report cannot be edited' : undefined}
+                  style={{ padding: '8px 20px', background: (submitting || locked) ? C.textMuted : C.green700, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: (submitting || locked) ? 'not-allowed' : 'pointer' }}>
+                  {submitting ? (editMode ? 'Updating…' : 'Submitting…') : locked ? 'Verified — locked' : editMode ? 'Update report ✓' : 'Submit report ✓'}
+                </button>
               )}
               {submitted && (
                 <span style={{ padding: '8px 20px', background: C.greenBg, color: C.green700, border: `1px solid ${C.green100}`, borderRadius: 6, fontSize: 12, fontWeight: 500 }}>✓ Submitted!</span>
