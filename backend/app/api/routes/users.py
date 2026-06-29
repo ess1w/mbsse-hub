@@ -255,7 +255,14 @@ async def resend_invite(
     u = await _get_or_404(user_id, db)
     u.email_verified = False
     await db.flush()
-    await _send_invite(u)
+    # Surface delivery errors here (unlike create, which is best-effort) so the
+    # admin can see exactly why an email failed.
+    try:
+        subject, html = _build_invite_email(u.full_name, u.email, get_settings().frontend_url)
+        await send_email(to=u.email, subject=subject, html_body=html)
+    except Exception as exc:
+        logger.error("Resend invite to %s failed: %s", u.email, exc)
+        raise HTTPException(status_code=502, detail=f"Email delivery failed: {exc}")
     await log_action(db, admin, "user.resend_invite", "user", u.id)
     return _serialize(u)
 
