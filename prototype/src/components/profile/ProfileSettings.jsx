@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { C } from '../../tokens.js';
-import { organisationsApi, slaApi } from '../../api/client.js';
+import { organisationsApi, slaApi, authApi, usesDemoData } from '../../api/client.js';
 
 const FIELD = {
   label: { fontSize: 11, fontWeight: 500, color: C.textSec, marginBottom: 4 },
@@ -32,6 +32,65 @@ export default function ProfileSettings({ user }) {
   const [slaUploading, setSlaUploading] = useState(false);
   const [slaError, setSlaError] = useState('');
   const slaInputRef = useRef(null);
+
+  // Change password
+  const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMsg, setPwMsg] = useState(null);   // { ok, text }
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPwMsg(null);
+    if (pw.next.length < 8) { setPwMsg({ ok: false, text: 'New password must be at least 8 characters.' }); return; }
+    if (pw.next !== pw.confirm) { setPwMsg({ ok: false, text: 'New passwords do not match.' }); return; }
+    if (usesDemoData()) { setPwMsg({ ok: false, text: 'Password change is unavailable in demo mode.' }); return; }
+    setPwSaving(true);
+    try {
+      await authApi.changePassword(pw.current, pw.next);
+      setPw({ current: '', next: '', confirm: '' });
+      setPwMsg({ ok: true, text: 'Password changed successfully.' });
+    } catch (err) {
+      setPwMsg({ ok: false, text: err.message || 'Could not change password.' });
+    } finally {
+      setPwSaving(false);
+    }
+  };
+
+  const PasswordCard = () => (
+    <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, padding: '16px 20px', marginTop: 20 }}>
+      <div style={{ fontSize: 10, fontWeight: 600, color: C.textSec, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 14 }}>
+        Change Password
+      </div>
+      {pwMsg && (
+        <div style={{ background: pwMsg.ok ? C.greenBg : C.redBg, border: `1px solid ${pwMsg.ok ? C.green100 : C.red}`, borderRadius: 6, padding: '9px 12px', fontSize: 12, color: pwMsg.ok ? C.green : C.red, marginBottom: 14 }}>
+          {pwMsg.text}
+        </div>
+      )}
+      <form onSubmit={handleChangePassword}>
+        <div style={{ display: 'grid', gap: 14, maxWidth: 360 }}>
+          <div>
+            <div style={FIELD.label}>Current password</div>
+            <input type="password" value={pw.current} onChange={e => setPw(p => ({ ...p, current: e.target.value }))} style={FIELD.input} autoComplete="current-password" />
+          </div>
+          <div>
+            <div style={FIELD.label}>New password</div>
+            <input type="password" value={pw.next} onChange={e => setPw(p => ({ ...p, next: e.target.value }))} style={FIELD.input} autoComplete="new-password" />
+          </div>
+          <div>
+            <div style={FIELD.label}>Confirm new password</div>
+            <input type="password" value={pw.confirm} onChange={e => setPw(p => ({ ...p, confirm: e.target.value }))} style={FIELD.input} autoComplete="new-password" />
+          </div>
+        </div>
+        <div style={{ marginTop: 16 }}>
+          <button type="submit" disabled={pwSaving} style={{
+            padding: '8px 20px', fontSize: 12, fontWeight: 500, borderRadius: 6,
+            border: 'none', background: pwSaving ? C.borderLight : C.blue600,
+            color: pwSaving ? C.textMuted : C.white, cursor: pwSaving ? 'default' : 'pointer',
+          }}>{pwSaving ? 'Saving…' : 'Update password'}</button>
+        </div>
+      </form>
+    </div>
+  );
 
   useEffect(() => {
     if (!user?.organisation_id) { setLoading(false); return; }
@@ -134,11 +193,27 @@ export default function ProfileSettings({ user }) {
     </main>
   );
 
+  // Non-partner accounts (admin / viewer / GEM) — show account + password only
   if (!user?.organisation_id) return (
-    <main style={{ flex: 1, padding: '32px 28px' }}>
-      <div style={{ maxWidth: 480, background: C.amberBg, border: `1px solid ${C.amber100}`, borderRadius: 8, padding: '16px 20px', fontSize: 13, color: C.amber700 }}>
-        Your account is not linked to a partner organisation. Contact an MBSSE administrator to assign your account.
+    <main style={{ flex: 1, padding: '24px 28px', maxWidth: 680 }}>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: C.text }}>My Account</div>
+        <div style={{ fontSize: 12, color: C.textSec, marginTop: 3 }}>Manage your account and password.</div>
       </div>
+      <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 8, padding: '16px 20px' }}>
+        <div style={{ fontWeight: 600, color: C.textSec, marginBottom: 12, textTransform: 'uppercase', letterSpacing: '.06em', fontSize: 10 }}>Account</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div>
+            <div style={FIELD.label}>Name</div>
+            <div style={FIELD.inputReadonly}>{user?.full_name || '—'}</div>
+          </div>
+          <div>
+            <div style={FIELD.label}>Role</div>
+            <div style={FIELD.inputReadonly}>{user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : '—'}</div>
+          </div>
+        </div>
+      </div>
+      <PasswordCard />
     </main>
   );
 
@@ -300,6 +375,8 @@ export default function ProfileSettings({ user }) {
           )}
         </form>
       </div>
+
+      <PasswordCard />
     </main>
   );
 }

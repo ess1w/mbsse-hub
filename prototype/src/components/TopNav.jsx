@@ -90,15 +90,13 @@ export default function TopNav({ activePage, setActivePage, user, onLogout }) {
             ...roleStyle,
           }}>{roleLabel}</span>
 
-          {isPartner && (
-            <button onClick={() => setActivePage('profile')} style={{
-              fontSize: 11, padding: '4px 10px', borderRadius: 4,
-              border: `1px solid ${C.border}`,
-              background: activePage === 'profile' ? C.blueBg : C.white,
-              color: activePage === 'profile' ? C.blue600 : C.textSec,
-              cursor: 'pointer',
-            }}>My Profile</button>
-          )}
+          <button onClick={() => setActivePage('profile')} style={{
+            fontSize: 11, padding: '4px 10px', borderRadius: 4,
+            border: `1px solid ${C.border}`,
+            background: activePage === 'profile' ? C.blueBg : C.white,
+            color: activePage === 'profile' ? C.blue600 : C.textSec,
+            cursor: 'pointer',
+          }}>{isPartner ? 'My Profile' : 'My Account'}</button>
 
           <div style={{
             width: 30, height: 30, borderRadius: '50%',

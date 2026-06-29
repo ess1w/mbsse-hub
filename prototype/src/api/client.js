@@ -163,6 +163,9 @@ export const authApi = {
 
   logout: () =>
     apiFetch('/auth/logout', { method: 'POST' }).catch(() => {}).finally(() => auth.clear()),
+
+  changePassword: (current_password, new_password) =>
+    apiFetch('/auth/change-password', { method: 'POST', body: JSON.stringify({ current_password, new_password }) }),
 };
 
 // ── Organisations API calls ──────────────────────────────────────────────

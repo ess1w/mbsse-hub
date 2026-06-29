@@ -13,10 +13,14 @@ from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from pydantic import BaseModel
+
+from app.core.deps import get_current_user
 from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
+    hash_password,
     verify_password,
 )
 from app.db.session import get_db
@@ -27,6 +31,26 @@ from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 bearer = HTTPBearer()
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@router.post("/change-password", status_code=204)
+async def change_password(
+    body: ChangePasswordRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Let the logged-in user change their own password."""
+    if not verify_password(body.current_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if len(body.new_password) < 8:
+        raise HTTPException(status_code=422, detail="New password must be at least 8 characters")
+    user.password_hash = hash_password(body.new_password)
+    db.add(user)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -40,8 +64,10 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is disabled")
 
-    # Update last_login
+    # Update last_login; a successful login also confirms the account (clears
+    # the "invite pending" state in User Management).
     user.last_login = datetime.now(timezone.utc)
+    user.email_verified = True
     db.add(user)
 
     org_name = None
