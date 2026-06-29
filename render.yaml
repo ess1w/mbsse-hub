@@ -57,8 +57,18 @@ services:
       # Update if your static site URL differs.
       - key: FRONTEND_URL
         value: https://mbsse-hub-frontend.onrender.com
-      # Email delivery (reminder + invite emails). Until these are set, emails are
-      # only logged to stdout (not delivered). Set in the Render dashboard.
+      # Email delivery (reminder + invite emails).
+      # On Render's free tier SMTP ports are blocked, so we send via Brevo's HTTPS
+      # API. Set BREVO_API_KEY (Brevo dashboard → SMTP & API → API Keys) in the
+      # Render dashboard. EMAIL_FROM must be a *verified sender* in Brevo.
+      # Until BREVO_API_KEY is set, emails are only logged to stdout (not delivered).
+      - key: BREVO_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false        # set to the address you verified as a sender in Brevo
+      - key: EMAIL_FROM_NAME
+        value: MBSSE Coordination Hub
+      # SMTP fallback — only used if BREVO_API_KEY is unset (e.g. later on a VPS)
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
@@ -67,10 +77,6 @@ services:
         sync: false
       - key: SMTP_PASSWORD
         sync: false
-      - key: EMAIL_FROM
-        value: noreply@mbsse.gov.sl
-      - key: EMAIL_FROM_NAME
-        value: MBSSE Coordination Hub
       # Preset.io embedded analytics — set these manually in the Render dashboard
       # (never commit API credentials to git)
       - key: PRESET_API_TOKEN

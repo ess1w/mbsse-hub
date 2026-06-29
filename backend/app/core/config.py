@@ -47,7 +47,10 @@ class Settings(BaseSettings):
     preset_workspace_slug: str = ""           # URL slug — find in manage.app.preset.io URL
     preset_dashboard_id: str = "7d717db9-a313-4a1e-9df7-53559491b97a"
 
-    # Email (SMTP)
+    # Email
+    # Preferred on Render free tier (SMTP ports are blocked there): Brevo HTTP API.
+    brevo_api_key: str = ""      # set to send via Brevo's HTTPS API
+    # SMTP fallback (works on a paid instance / VPS where SMTP ports are open)
     smtp_host: str = ""          # leave blank to use stdout in dev
     smtp_port: int = 587
     smtp_user: str = ""
