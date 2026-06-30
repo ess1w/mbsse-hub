@@ -12,6 +12,7 @@ const PAGE_SECTIONS = {
 const COMPLETED_INIT = {};
 
 export default function ReportingForm({ user, setActivePage }) {
+  const isAdmin = user?.role === 'admin';   // admins never submit partner reports
   const [currentPage, setCurrentPage] = useState(1);
   const [completedPages, setCompletedPages] = useState([1]);
   const [completedSections, setCompletedSections] = useState(COMPLETED_INIT);
@@ -693,6 +694,12 @@ export default function ReportingForm({ user, setActivePage }) {
         {/* FORM BODY */}
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ flex: 1, padding: '20px 24px' }}>
+            {/* Admin note — admins can view the form but not submit */}
+            {isAdmin && (
+              <div style={{ marginBottom: 12, padding: '9px 14px', borderRadius: 6, fontSize: 12, background: C.amberBg, border: `1px solid ${C.amber100}`, color: C.amber700 }}>
+                Administrators can view the reporting form but do not submit reports — only partner organisations file submissions.
+              </div>
+            )}
             {/* Edit / locked banner */}
             {editMode && (
               <div style={{
@@ -1405,9 +1412,10 @@ export default function ReportingForm({ user, setActivePage }) {
                 <button onClick={nextPage} style={{ padding: '8px 20px', background: C.blue600, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>Next page →</button>
               )}
               {currentPage === 3 && !submitted && (
-                <button onClick={handleSubmit} disabled={submitting || locked} title={locked ? 'This verified report cannot be edited' : undefined}
-                  style={{ padding: '8px 20px', background: (submitting || locked) ? C.textMuted : C.green700, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: (submitting || locked) ? 'not-allowed' : 'pointer' }}>
-                  {submitting ? (editMode ? 'Updating…' : 'Submitting…') : locked ? 'Verified — locked' : editMode ? 'Update report ✓' : 'Submit report ✓'}
+                <button onClick={handleSubmit} disabled={submitting || locked || isAdmin}
+                  title={isAdmin ? 'Administrators do not submit partner reports' : locked ? 'This verified report cannot be edited' : undefined}
+                  style={{ padding: '8px 20px', background: (submitting || locked || isAdmin) ? C.textMuted : C.green700, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: (submitting || locked || isAdmin) ? 'not-allowed' : 'pointer' }}>
+                  {submitting ? (editMode ? 'Updating…' : 'Submitting…') : isAdmin ? 'Submit (partners only)' : locked ? 'Verified — locked' : editMode ? 'Update report ✓' : 'Submit report ✓'}
                 </button>
               )}
               {submitted && (
