@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { C } from '../tokens.js';
 import { authApi } from '../api/client.js';
 import coatOfArms from '../assets/Coat_of_arms_of_Sierra_Leone.png';
-import bg from '../assets/app_backgrnd.jpg';
+import bg from '../assets/app_backgrnd2.jpg';
 
 export default function ForcePasswordChange({ user, onDone, onLogout }) {
   const [pw, setPw] = useState({ current: '', next: '', confirm: '' });

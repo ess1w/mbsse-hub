@@ -1,7 +1,7 @@
 import React from 'react';
 import { C } from '../tokens.js';
 import coatOfArms from '../assets/Coat_of_arms_of_Sierra_Leone.png';
-import bg from '../assets/app_backgrnd.jpg';
+import bg from '../assets/app_backgrnd2.jpg';
 
 const CARDS = [
   {

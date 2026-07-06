@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { C } from '../tokens.js';
 import { authApi, auth, DEMO_MODE } from '../api/client.js';
 import coatOfArms from '../assets/Coat_of_arms_of_Sierra_Leone.png';
-import bg from '../assets/app_backgrnd.jpg';
+import bg from '../assets/app_backgrnd2.jpg';
 
 export default function Login({ onLogin }) {
   const [email, setEmail]       = useState('');
