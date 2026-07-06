@@ -25,7 +25,7 @@ export default function GemOfficerHome({ setActivePage, user }) {
     <main style={{
       flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       padding: '40px 24px', minHeight: 0,
-      backgroundImage: `linear-gradient(rgba(247,249,251,.92), rgba(247,249,251,.92)), url(${bg})`,
+      backgroundImage: `linear-gradient(rgba(247,249,251,.75), rgba(247,249,251,.75)), url(${bg})`,
       backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed',
     }}>
       <div style={{ textAlign: 'center', maxWidth: 560, marginBottom: 36 }}>

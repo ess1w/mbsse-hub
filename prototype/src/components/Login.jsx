@@ -39,7 +39,7 @@ export default function Login({ onLogin }) {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundImage: `linear-gradient(rgba(244,247,244,.90), rgba(244,247,244,.90)), url(${bg})`,
+      backgroundImage: `linear-gradient(rgba(244,247,244,.72), rgba(244,247,244,.72)), url(${bg})`,
       backgroundSize: 'cover', backgroundPosition: 'center',
       display: 'flex',
       flexDirection: 'column',

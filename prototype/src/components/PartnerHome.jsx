@@ -37,7 +37,7 @@ export default function PartnerHome({ setActivePage, user }) {
       justifyContent: 'center',
       padding: '40px 24px',
       minHeight: 0,
-      backgroundImage: `linear-gradient(rgba(247,249,251,.92), rgba(247,249,251,.92)), url(${bg})`,
+      backgroundImage: `linear-gradient(rgba(247,249,251,.75), rgba(247,249,251,.75)), url(${bg})`,
       backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed',
     }}>
       {/* Header */}

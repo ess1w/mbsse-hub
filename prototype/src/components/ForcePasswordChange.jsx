@@ -31,7 +31,7 @@ export default function ForcePasswordChange({ user, onDone, onLogout }) {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
-      backgroundImage: `linear-gradient(rgba(247,249,251,.9), rgba(247,249,251,.9)), url(${bg})`,
+      backgroundImage: `linear-gradient(rgba(247,249,251,.75), rgba(247,249,251,.75)), url(${bg})`,
       backgroundSize: 'cover', backgroundPosition: 'center',
     }}>
       <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: '28px 26px', width: '100%', maxWidth: 400, boxShadow: '0 8px 32px rgba(0,0,0,.10)' }}>
