@@ -3,35 +3,37 @@ import { C } from '../tokens.js';
 import coatOfArms from '../assets/Coat_of_arms_of_Sierra_Leone.png';
 
 export default function TopNav({ activePage, setActivePage, user, onLogout }) {
-  const isViewer  = user?.role === 'viewer';
-  const isPartner = user?.role === 'partner';
+  const role      = user?.role;
+  const isViewer  = role === 'viewer';
+  const isPartner = role === 'partner';
 
   // Role-aware home page — the title acts as the Home link
-  const homePage = { admin: 'admin-home', partner: 'partner-home', gem_coordinator: 'gem-home' }[user?.role] ?? 'dashboard';
+  const homePage = {
+    admin: 'admin-home', partner: 'partner-home', gem_coordinator: 'gem-home',
+    gem_district_officer: 'gem-officer-home',
+  }[role] ?? 'dashboard';
   const goHome = () => setActivePage(homePage);
 
-  const nav = [
-    { id: 'dashboard', label: 'Dashboard' },
-    { id: 'directory', label: 'Partner Directory' },
-    ...(!isViewer ? [{ id: 'form', label: 'Reporting Form' }] : []),
-  ];
+  const nav = [{ id: 'dashboard', label: 'Dashboard' }];
+  if (['partner', 'admin', 'viewer'].includes(role)) nav.push({ id: 'directory', label: 'Partner Directory' });
+  if (['partner', 'admin'].includes(role))           nav.push({ id: 'form', label: 'Reporting Form' });
 
   const initials = user?.email
     ? user.email.slice(0, 2).toUpperCase()
     : '??';
 
-  const roleLabel = user?.role === 'gem_coordinator'
-    ? 'GEM Coord.'
-    : user?.role
-      ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
-      : '';
+  const roleLabel = {
+    gem_coordinator: 'GEM Coord.',
+    gem_district_officer: 'GEM Officer',
+  }[role] ?? (role ? role.charAt(0).toUpperCase() + role.slice(1) : '');
 
   const roleStyle = {
-    admin:           { background: C.blueBg,   color: C.blue900,   border: `1px solid ${C.blue100}` },
-    viewer:          { background: C.greenBg,  color: C.green900,  border: `1px solid ${C.green100}` },
-    partner:         { background: C.amberBg,  color: C.amber600,  border: `1px solid ${C.amber100}` },
-    gem_coordinator: { background: C.greenBg,  color: C.green900,  border: `1px solid ${C.green100}` },
-  }[user?.role] ?? { background: C.borderLight, color: C.textSec, border: `1px solid ${C.border}` };
+    admin:                { background: C.blueBg,   color: C.blue900,   border: `1px solid ${C.blue100}` },
+    viewer:               { background: C.greenBg,  color: C.green900,  border: `1px solid ${C.green100}` },
+    partner:              { background: C.amberBg,  color: C.amber600,  border: `1px solid ${C.amber100}` },
+    gem_coordinator:      { background: C.greenBg,  color: C.green900,  border: `1px solid ${C.green100}` },
+    gem_district_officer: { background: C.amberBg,  color: C.amber700,  border: `1px solid ${C.amber100}` },
+  }[role] ?? { background: C.borderLight, color: C.textSec, border: `1px solid ${C.border}` };
 
   return (
     <>

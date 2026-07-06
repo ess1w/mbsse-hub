@@ -16,6 +16,7 @@ Usage (Preset):
   python3 fix_superset_sql_v2.py
 
 Do not set SUPERSET_USER/PASSWORD on Preset — that login endpoint is disabled.
+Auth uses manage.app.preset.io/api/v1 (Professional). api.app.preset.io is Enterprise-only.
 
 Usage (local Docker):
   SUPERSET_URL=http://127.0.0.1:8088 SUPERSET_USER=admin SUPERSET_PASSWORD=admin \\

@@ -39,7 +39,9 @@ class Settings(BaseSettings):
     cloudinary_api_secret: str = ""
 
     # Preset.io embedded analytics
-    # Generate API key at manage.app.preset.io → user settings → API Keys
+    # API keys: manage.app.preset.io → user settings → API Keys
+    # Guest tokens use manage.app.preset.io (Professional embedding).
+    # api.app.preset.io is Enterprise-only — do not use for embedding.
     preset_api_token: str = ""
     preset_api_secret: str = ""
     preset_team: str = "efeed616"

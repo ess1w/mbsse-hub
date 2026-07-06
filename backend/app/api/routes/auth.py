@@ -50,6 +50,7 @@ async def change_password(
     if len(body.new_password) < 8:
         raise HTTPException(status_code=422, detail="New password must be at least 8 characters")
     user.password_hash = hash_password(body.new_password)
+    user.must_change_password = False
     db.add(user)
 
 
@@ -74,6 +75,11 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     if user.organisation_id:
         org = await db.get(Organisation, user.organisation_id)
         org_name = org.org_name if org else None
+    district_name = None
+    if user.district_id:
+        from app.models.location import District
+        district_name = await db.scalar(
+            select(District.district_name).where(District.id == user.district_id))
 
     return TokenResponse(
         access_token=create_access_token(
@@ -84,6 +90,8 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
         full_name=user.full_name,
         organisation_id=str(user.organisation_id) if user.organisation_id else None,
         org_name=org_name,
+        district_name=district_name,
+        must_change_password=user.must_change_password,
     )
 
 
@@ -112,6 +120,11 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
     if user.organisation_id:
         org = await db.get(Organisation, user.organisation_id)
         org_name = org.org_name if org else None
+    district_name = None
+    if user.district_id:
+        from app.models.location import District
+        district_name = await db.scalar(
+            select(District.district_name).where(District.id == user.district_id))
 
     return TokenResponse(
         access_token=create_access_token(
@@ -122,6 +135,8 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
         full_name=user.full_name,
         organisation_id=str(user.organisation_id) if user.organisation_id else None,
         org_name=org_name,
+        district_name=district_name,
+        must_change_password=user.must_change_password,
     )
 
 

@@ -15,6 +15,7 @@ Self-hosted example:
 
 You can paste a full Preset UI URL — the script strips it to the workspace base.
 API keys: manage.app.preset.io → your profile → API Keys (same keys as Render embed).
+Auth uses manage.app.preset.io/api/v1 (Professional), not api.app.preset.io (Enterprise).
 """
 
 from __future__ import annotations

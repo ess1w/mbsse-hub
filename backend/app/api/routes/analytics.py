@@ -12,9 +12,12 @@ Flow:
 Environment variables required (set in Render dashboard):
   PRESET_API_TOKEN      – token from manage.app.preset.io → user settings → API Keys
   PRESET_API_SECRET     – secret from the same page (only shown once)
-  PRESET_TEAM           – team name (default: MBSSE)
-  PRESET_WORKSPACE      – workspace name (default: SRGBV Hub)
-  PRESET_DASHBOARD_ID   – dashboard slug from the Preset URL (default: oBMOvaLJDme)
+  PRESET_TEAM           – team slug from the Embed dashboard dialog
+  PRESET_WORKSPACE_SLUG – workspace slug from the Embed dashboard dialog
+  PRESET_DASHBOARD_ID   – Embedded Dashboard ID from the Embed dashboard dialog
+
+Uses manage.app.preset.io (Professional embedding API). Do not use api.app.preset.io
+here — that host is Enterprise-only and returns 403 on Professional plans.
 """
 import httpx
 from urllib.parse import quote
@@ -28,8 +31,12 @@ from app.core.security import decode_token
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 bearer = HTTPBearer()
 
-PRESET_AUTH_URL   = "https://api.app.preset.io/v1/auth/"
-PRESET_GUEST_URL  = "https://api.app.preset.io/v1/teams/{team}/workspaces/{workspace}/guest-token/"
+# Professional embedding + API keys from manage.app.preset.io (not Enterprise api.app.preset.io)
+PRESET_MANAGE_BASE = "https://manage.app.preset.io/api/v1"
+PRESET_AUTH_URL = f"{PRESET_MANAGE_BASE}/auth/"
+PRESET_GUEST_URL = (
+    f"{PRESET_MANAGE_BASE}/teams/{{team}}/workspaces/{{workspace}}/guest-token/"
+)
 
 
 async def _get_preset_access_token(token: str, secret: str) -> str:
@@ -132,7 +139,7 @@ async def list_preset_workspaces(
     headers = {"Authorization": f"Bearer {access_token}"}
 
     async with httpx.AsyncClient(timeout=10) as client:
-        teams_res = await client.get("https://api.app.preset.io/v1/teams/", headers=headers)
+        teams_res = await client.get(f"{PRESET_MANAGE_BASE}/teams/", headers=headers)
 
     if teams_res.status_code != 200:
         raise HTTPException(status_code=502, detail=f"Preset teams request failed: {teams_res.text[:300]}")
@@ -143,7 +150,7 @@ async def list_preset_workspaces(
         for team in teams:
             team_slug = team.get("name") or team.get("slug") or team.get("id")
             ws_res = await client.get(
-                f"https://api.app.preset.io/v1/teams/{team_slug}/workspaces/",
+                f"{PRESET_MANAGE_BASE}/teams/{team_slug}/workspaces/",
                 headers=headers,
             )
             workspaces = ws_res.json().get("payload", []) if ws_res.status_code == 200 else []

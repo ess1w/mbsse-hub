@@ -8,7 +8,12 @@ from typing import Any
 
 import requests
 
-PRESET_AUTH_URL = "https://api.app.preset.io/v1/auth/"
+# API keys from manage.app.preset.io — works for workspace + embedding on Professional.
+# api.app.preset.io is Enterprise-only (org/team management API).
+PRESET_AUTH_URL = os.environ.get(
+    "PRESET_AUTH_URL",
+    "https://manage.app.preset.io/api/v1/auth/",
+)
 
 
 def normalize_workspace_url(url: str) -> str:
@@ -70,6 +75,8 @@ def login_session(base_url: str | None = None) -> requests.Session:
       PRESET_API_TOKEN=...
       PRESET_API_SECRET=...
       Do NOT set SUPERSET_USER/PASSWORD — Preset blocks /api/v1/security/login.
+      Auth uses manage.app.preset.io (Professional). Override with PRESET_AUTH_URL
+      only if Preset directs you to a different endpoint.
 
     Self-hosted Superset:
       SUPERSET_URL=http://localhost:8088

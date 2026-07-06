@@ -114,11 +114,14 @@ class GemReport(Base):
 
     # Status
     status = Column(
-        SAEnum('draft', 'submitted', name='gem_submission_status'),
+        SAEnum('draft', 'submitted', 'reviewed', name='gem_submission_status'),
         nullable=False,
         default='draft',
     )
     submitted_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    # Review by a GEM district officer
+    reviewed_by = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    reviewed_at = Column(TIMESTAMP(timezone=True), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), server_default=func.now(),
                         onupdate=func.now())

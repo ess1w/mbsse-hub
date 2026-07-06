@@ -33,8 +33,13 @@ def _require_gem_or_admin(user: User) -> None:
 
 
 def _require_read_access(user: User) -> None:
-    if user.role not in ('gem_coordinator', 'admin', 'viewer'):
+    if user.role not in ('gem_coordinator', 'admin', 'viewer', 'gem_district_officer'):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
+
+
+def _require_officer_or_admin(user: User) -> None:
+    if user.role not in ('gem_district_officer', 'admin'):
+        raise HTTPException(status_code=403, detail="GEM District Officer or Admin access required")
 
 
 async def _get_or_404(report_id: UUID, db: AsyncSession) -> GemReport:
@@ -53,8 +58,11 @@ async def _get_or_404(report_id: UUID, db: AsyncSession) -> GemReport:
 
 
 def _check_ownership(user: User, report: GemReport) -> None:
-    """GEM coordinators may only access their own reports."""
+    """GEM coordinators may only access their own reports; GEM district officers
+    may only access reports for their assigned district."""
     if user.role == 'gem_coordinator' and report.submitted_by != user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    if user.role == 'gem_district_officer' and report.district_id != user.district_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
 
@@ -134,6 +142,12 @@ async def list_reports(
     # GEM coordinators only see their own reports
     if user.role == 'gem_coordinator':
         q = q.where(GemReport.submitted_by == user.id)
+    # GEM district officers only see submitted/reviewed reports for their district
+    elif user.role == 'gem_district_officer':
+        q = q.where(
+            GemReport.district_id == user.district_id,
+            GemReport.status.in_(['submitted', 'reviewed']),
+        )
 
     q = q.order_by(GemReport.reporting_month.desc())
     rows = (await db.scalars(q)).all()
@@ -270,6 +284,29 @@ async def submit_report(
     report.submitted_at = datetime.now(timezone.utc)
     await db.commit()
     await log_action(db, user, 'gem_report.submit', 'gem_report', report.id)
+
+    return _build_out(await _get_or_404(report.id, db))
+
+
+@router.post("/{report_id}/review", response_model=GemReportOut)
+async def review_report(
+    report_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """GEM district officer (own district) or admin marks a submitted report as reviewed."""
+    _require_officer_or_admin(user)
+    report = await _get_or_404(report_id, db)
+    _check_ownership(user, report)   # officer limited to their district
+
+    if report.status != 'submitted':
+        raise HTTPException(status_code=400, detail="Only submitted reports can be reviewed")
+
+    report.status = 'reviewed'
+    report.reviewed_by = user.id
+    report.reviewed_at = datetime.now(timezone.utc)
+    await db.commit()
+    await log_action(db, user, 'gem_report.review', 'gem_report', report.id)
 
     return _build_out(await _get_or_404(report.id, db))
 

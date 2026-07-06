@@ -15,6 +15,8 @@ class TokenResponse(BaseModel):
     organisation_id: str | None = None
     full_name: str | None = None
     org_name: str | None = None
+    district_name: str | None = None
+    must_change_password: bool = False
 
 
 class RefreshRequest(BaseModel):

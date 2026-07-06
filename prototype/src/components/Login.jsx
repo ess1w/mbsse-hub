@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { C } from '../tokens.js';
 import { authApi, auth, DEMO_MODE } from '../api/client.js';
 import coatOfArms from '../assets/Coat_of_arms_of_Sierra_Leone.png';
+import bg from '../assets/app_backgrnd.jpg';
 
 export default function Login({ onLogin }) {
   const [email, setEmail]       = useState('');
@@ -16,7 +17,12 @@ export default function Login({ onLogin }) {
     try {
       const data = await authApi.login(email, password);
       auth.setTokens({ access_token: data.access_token, refresh_token: data.refresh_token });
-      const userData = { email, role: data.role, organisation_id: data.organisation_id, org_name: data.org_name, full_name: data.full_name };
+      const userData = {
+        email, role: data.role, organisation_id: data.organisation_id,
+        org_name: data.org_name, full_name: data.full_name,
+        district_name: data.district_name,
+        must_change_password: data.must_change_password,
+      };
       auth.setUser(userData);
       onLogin(userData);
     } catch (err) {
@@ -33,7 +39,8 @@ export default function Login({ onLogin }) {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#f4f7f4',
+      backgroundImage: `linear-gradient(rgba(244,247,244,.90), rgba(244,247,244,.90)), url(${bg})`,
+      backgroundSize: 'cover', backgroundPosition: 'center',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',

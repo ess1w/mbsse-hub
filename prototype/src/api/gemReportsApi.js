@@ -40,4 +40,12 @@ export const gemReportsApi = {
     }
     return apiFetch(`/gem-reports/${id}/submit`, { method: 'POST' });
   },
+  review: (id) => {
+    if (usesDemoData()) {
+      const idx = DEMO_REPORTS.findIndex(r => r.id === id);
+      if (idx !== -1) DEMO_REPORTS[idx].status = 'reviewed';
+      return Promise.resolve(DEMO_REPORTS[idx]);
+    }
+    return apiFetch(`/gem-reports/${id}/review`, { method: 'POST' });
+  },
 };

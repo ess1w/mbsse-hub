@@ -25,6 +25,7 @@ const DASHBOARD_ID  = import.meta.env.VITE_PRESET_DASHBOARD_ID ?? 'oBMOvaLJDme';
 export default function AnalyticsDashboard() {
   const mountRef = useRef(null);
   const [status, setStatus] = useState('loading'); // loading | ready | error | unconfigured | demo
+  const [errorDetail, setErrorDetail] = useState('');
 
   useEffect(() => {
     if (!PRESET_DOMAIN) {
@@ -57,7 +58,10 @@ export default function AnalyticsDashboard() {
         if (!cancelled) setStatus('ready');
       } catch (err) {
         console.error('Preset embed error:', err);
-        if (!cancelled) setStatus('error');
+        if (!cancelled) {
+          setErrorDetail(err?.message || String(err));
+          setStatus('error');
+        }
       }
     }
 
@@ -80,7 +84,11 @@ export default function AnalyticsDashboard() {
         <Placeholder
           icon="⚠"
           title="Dashboard could not load"
-          body="Check that PRESET_API_TOKEN and PRESET_API_SECRET are set on the API service in Render, then redeploy."
+          body={
+            errorDetail
+              ? <>The API returned: <code style={codeStyle}>{errorDetail}</code>. Check Preset embed settings (allowed domains, dashboard ID) and that the API service was redeployed after any env var changes.</>
+              : 'Check Preset embed settings and that PRESET_API_TOKEN / PRESET_API_SECRET are set on the API service in Render, then redeploy.'
+          }
           accent={C.amber700}
           bg={C.amberBg}
         />

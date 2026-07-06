@@ -29,7 +29,19 @@ const ROLE_META = {
     badge: { background: C.greenBg, color: C.green900, border: `1px solid ${C.green100}` },
     avatar: { background: C.greenBg, color: C.green700 },
   },
+  gem_district_officer: {
+    label: 'GEM District Officer',
+    desc: 'Reviews GEM coordinators\' monthly submissions for their assigned district',
+    badge: { background: C.amberBg, color: C.amber700, border: `1px solid ${C.amber100}` },
+    avatar: { background: C.amberBg, color: C.amber700 },
+  },
 };
+
+const DISTRICTS = [
+  'Bo', 'Bombali', 'Bonthe', 'Falaba', 'Kailahun', 'Kambia', 'Karene',
+  'Kenema', 'Koinadugu', 'Kono', 'Moyamba', 'Port Loko', 'Pujehun',
+  'Tonkolili', 'Western Area Rural', 'Western Area Urban',
+];
 
 const ORGS = [
   'ActionAid Sierra Leone', 'BRAC Sierra Leone', 'Caritas Makeni', 'Catholic Relief Services',
@@ -105,7 +117,7 @@ function PanelInput({ fieldKey, placeholder, type = 'text', value, error, onChan
 
 // ── Main component ───────────────────────────────────────────────────────────
 
-const BLANK_FORM = { name: '', email: '', role: 'partner', org: '', sendInvite: true };
+const BLANK_FORM = { name: '', email: '', role: 'partner', org: '', district: '', sendInvite: true };
 
 export default function UserManagement() {
   const [users, setUsers]               = useState(INIT_USERS);
@@ -138,6 +150,7 @@ export default function UserManagement() {
   const [panelErrors, setPanelErrors]   = useState({});
   const [confirmId, setConfirmId]       = useState(null);   // id pending deactivation confirm
   const [toast, setToast]               = useState(null);   // { msg, type }
+  const [resetInfo, setResetInfo]       = useState(null);   // { name, temp, emailSent }
 
   // ── Stats ──────────────────────────────────────────────────────────────────
 
@@ -181,7 +194,7 @@ export default function UserManagement() {
 
   const openEdit = (u) => {
     setEditUser(u);
-    setPanelForm({ name: u.name, email: u.email, role: u.role, org: u.org ?? '', sendInvite: false });
+    setPanelForm({ name: u.name, email: u.email, role: u.role, org: u.org ?? '', district: u.district ?? '', sendInvite: false });
     setPanelErrors({});
     setPanelOpen(true);
   };
@@ -196,6 +209,7 @@ export default function UserManagement() {
     if (!panelForm.name.trim())  errs.name  = 'Full name is required';
     if (!panelForm.email.trim() || !panelForm.email.includes('@')) errs.email = 'A valid email address is required';
     if (panelForm.role === 'partner' && !panelForm.org) errs.org = 'Partner users must be linked to an organisation';
+    if (panelForm.role === 'gem_district_officer' && !panelForm.district) errs.district = 'GEM district officers must be assigned a district';
     if (!editUser && users.some(u => u.email.toLowerCase() === panelForm.email.trim().toLowerCase())) {
       errs.email = 'This email is already registered';
     }
@@ -207,18 +221,19 @@ export default function UserManagement() {
     if (Object.keys(errs).length) { setPanelErrors(errs); return; }
 
     const org = panelForm.role === 'partner' ? panelForm.org : null;
+    const district = panelForm.role === 'gem_district_officer' ? panelForm.district : null;
 
     // Demo mode — keep local-only behaviour
     if (demo) {
       if (editUser) {
         setUsers(prev => prev.map(u => u.id === editUser.id
-          ? { ...u, name: panelForm.name.trim(), email: panelForm.email.trim(), role: panelForm.role, org, invitePending: u.invitePending }
+          ? { ...u, name: panelForm.name.trim(), email: panelForm.email.trim(), role: panelForm.role, org, district, invitePending: u.invitePending }
           : u));
         showToast('User updated successfully', 'ok');
       } else {
         setUsers(prev => [...prev, {
           id: _nextId++, name: panelForm.name.trim(), email: panelForm.email.trim(),
-          role: panelForm.role, org, status: 'Active', lastLogin: null, invitePending: panelForm.sendInvite,
+          role: panelForm.role, org, district, status: 'Active', lastLogin: null, invitePending: panelForm.sendInvite,
         }]);
         showToast(panelForm.sendInvite ? 'User added — invitation email sent' : 'User added', 'ok');
       }
@@ -228,10 +243,10 @@ export default function UserManagement() {
 
     try {
       if (editUser) {
-        await usersApi.update(editUser.id, { name: panelForm.name.trim(), email: panelForm.email.trim(), role: panelForm.role, org });
+        await usersApi.update(editUser.id, { name: panelForm.name.trim(), email: panelForm.email.trim(), role: panelForm.role, org, district });
         showToast('User updated successfully', 'ok');
       } else {
-        await usersApi.create({ name: panelForm.name.trim(), email: panelForm.email.trim(), role: panelForm.role, org, send_invite: panelForm.sendInvite });
+        await usersApi.create({ name: panelForm.name.trim(), email: panelForm.email.trim(), role: panelForm.role, org, district, send_invite: panelForm.sendInvite });
         showToast('User added', 'ok');
       }
       await reloadUsers();
@@ -288,6 +303,18 @@ export default function UserManagement() {
       showToast('Invitation resent', 'ok');
     } catch (e) {
       showToast(e.message || 'Action failed', 'warn');
+    }
+  };
+
+  const resetPassword = async (u) => {
+    if (demo) { showToast('Password reset is unavailable in demo mode', 'warn'); return; }
+    if (!window.confirm(`Reset the password for ${u.name}? They will be emailed a temporary password and prompted to change it on next login.`)) return;
+    try {
+      const r = await usersApi.resetPassword(u.id);
+      setResetInfo({ name: u.name, temp: r.temp_password, emailSent: r.email_sent, emailError: r.email_error });
+      await reloadUsers();
+    } catch (e) {
+      showToast(e.message || 'Reset failed', 'warn');
     }
   };
 
@@ -408,6 +435,7 @@ export default function UserManagement() {
                     <td style={tdS} onClick={e => e.stopPropagation()}>
                       <div style={{ display: 'flex', gap: 12 }}>
                         <span onClick={() => openEdit(u)} style={{ fontSize: 11, color: C.blue600, cursor: 'pointer', fontWeight: 500 }}>Edit</span>
+                        <span onClick={() => resetPassword(u)} style={{ fontSize: 11, color: C.blue600, cursor: 'pointer', fontWeight: 500 }}>Reset password</span>
                         {u.invitePending && (
                           <span onClick={() => resendInvite(u.id)} style={{ fontSize: 11, color: C.amber700, cursor: 'pointer', fontWeight: 500 }}>Resend invite</span>
                         )}
@@ -485,6 +513,30 @@ export default function UserManagement() {
         </div>
       )}
 
+      {/* ── Password reset result modal ──────────────────────────────────────── */}
+      {resetInfo && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300 }} onClick={e => e.target === e.currentTarget && setResetInfo(null)}>
+          <div style={{ background: C.white, borderRadius: 10, padding: '20px 22px', width: '100%', maxWidth: 420, boxShadow: '0 8px 32px rgba(0,0,0,.18)' }}>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>Password reset for {resetInfo.name}</div>
+            <div style={{ fontSize: 12, color: C.textSec, marginBottom: 12, lineHeight: 1.5 }}>
+              A temporary password has been generated. The user will be prompted to change it on next login.
+            </div>
+            <div style={{ fontSize: 11, color: C.textMuted, marginBottom: 4 }}>Temporary password</div>
+            <div style={{ fontFamily: 'monospace', fontSize: 15, fontWeight: 600, color: C.text, background: '#f8fafc', border: `1px solid ${C.border}`, borderRadius: 6, padding: '8px 12px', userSelect: 'all', marginBottom: 12 }}>
+              {resetInfo.temp}
+            </div>
+            <div style={{ fontSize: 11, padding: '8px 12px', borderRadius: 6, marginBottom: 16, background: resetInfo.emailSent ? C.greenBg : C.amberBg, color: resetInfo.emailSent ? C.green : C.amber700, border: `1px solid ${resetInfo.emailSent ? C.green100 : C.amber100}` }}>
+              {resetInfo.emailSent
+                ? '✓ Emailed to the user. You can also share the password above if needed.'
+                : `⚠ Email could not be sent${resetInfo.emailError ? ` (${resetInfo.emailError})` : ''} — please share the password above with the user directly.`}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setResetInfo(null)} style={{ padding: '8px 18px', background: C.blue600, color: C.white, border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>Done</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Add / Edit panel ─────────────────────────────────────────────────── */}
       {panelOpen && (
         <>
@@ -550,6 +602,23 @@ export default function UserManagement() {
                     {orgOptions.map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
                   {panelErrors.org && <div style={{ fontSize: 10, color: C.red700, marginTop: 3 }}>{panelErrors.org}</div>}
+                </div>
+              )}
+
+              {/* District (GEM district officer only) */}
+              {panelForm.role === 'gem_district_officer' && (
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 500, color: C.textSec, display: 'block', marginBottom: 2 }}>District *</label>
+                  <div style={{ fontSize: 10, color: C.textMuted, marginBottom: 6 }}>The officer reviews GEM submissions for this district only</div>
+                  <select
+                    value={panelForm.district}
+                    onChange={e => setPField('district', e.target.value)}
+                    style={{ width: '100%', height: 36, border: `1px solid ${panelErrors.district ? C.red500 : C.border}`, borderRadius: 6, padding: '0 10px', fontSize: 12, color: panelForm.district ? C.text : C.textMuted }}
+                  >
+                    <option value="">Select district…</option>
+                    {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  {panelErrors.district && <div style={{ fontSize: 10, color: C.red700, marginTop: 3 }}>{panelErrors.district}</div>}
                 </div>
               )}
 

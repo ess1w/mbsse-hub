@@ -14,6 +14,9 @@ import ProfileSettings from './components/profile/ProfileSettings.jsx';
 import PartnerHome from './components/PartnerHome.jsx';
 import AdminHome from './components/AdminHome.jsx';
 import GemHome from './components/GemHome.jsx';
+import GemOfficerHome from './components/GemOfficerHome.jsx';
+import GemReview from './components/gem/GemReview.jsx';
+import ForcePasswordChange from './components/ForcePasswordChange.jsx';
 import Login from './components/Login.jsx';
 import { C } from './tokens.js';
 import { auth, authApi } from './api/client.js';
@@ -27,8 +30,18 @@ export default function App() {
 
   function handleLogin(userData) {
     setUser(userData);
-    const landingByRole = { partner: 'partner-home', gem_coordinator: 'gem-home', admin: 'admin-home' };
+    const landingByRole = {
+      partner: 'partner-home', gem_coordinator: 'gem-home',
+      admin: 'admin-home', gem_district_officer: 'gem-officer-home',
+    };
     setActivePage(landingByRole[userData.role] ?? 'dashboard');
+  }
+
+  // Forced password change after an admin reset
+  function clearForcedChange() {
+    const u = { ...user, must_change_password: false };
+    auth.setUser(u);
+    setUser(u);
   }
 
   async function handleLogout() {
@@ -40,6 +53,10 @@ export default function App() {
 
   if (!user) {
     return <Login onLogin={handleLogin} />;
+  }
+
+  if (user.must_change_password) {
+    return <ForcePasswordChange user={user} onDone={clearForcedChange} onLogout={handleLogout} />;
   }
 
   return (
@@ -71,6 +88,8 @@ export default function App() {
         {activePage === 'partner-home' && <PartnerHome setActivePage={setActivePage} user={user} />}
         {activePage === 'admin-home'   && <AdminHome setActivePage={setActivePage} user={user} />}
         {activePage === 'gem-home'     && <GemHome setActivePage={setActivePage} user={user} />}
+        {activePage === 'gem-officer-home' && <GemOfficerHome setActivePage={setActivePage} user={user} />}
+        {activePage === 'gem-review'   && <GemReview user={user} />}
       </div>
     </div>
   );

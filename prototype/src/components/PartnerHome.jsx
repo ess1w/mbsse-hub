@@ -1,5 +1,7 @@
 import React from 'react';
 import { C } from '../tokens.js';
+import coatOfArms from '../assets/Coat_of_arms_of_Sierra_Leone.png';
+import bg from '../assets/app_backgrnd.jpg';
 
 const CARDS = [
   {
@@ -34,21 +36,24 @@ export default function PartnerHome({ setActivePage, user }) {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '40px 24px',
-      background: C.bg,
       minHeight: 0,
+      backgroundImage: `linear-gradient(rgba(247,249,251,.92), rgba(247,249,251,.92)), url(${bg})`,
+      backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed',
     }}>
       {/* Header */}
       <div style={{ textAlign: 'center', maxWidth: 560, marginBottom: 40 }}>
+        <img src={coatOfArms} alt="Coat of Arms of Sierra Leone" style={{ height: 56, marginBottom: 10 }} />
+        <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Ministry of Basic and Senior Secondary Education</div>
         <div style={{
           display: 'inline-block',
           background: C.blueBg,
           border: `1px solid ${C.blue100}`,
           borderRadius: 12,
-          padding: '8px 16px',
-          fontSize: 12,
+          padding: '6px 14px',
+          fontSize: 11,
           color: C.blue900,
           fontWeight: 500,
-          marginBottom: 16,
+          margin: '10px 0 16px',
         }}>
           SRGBV Coordination Hub
         </div>

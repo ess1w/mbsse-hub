@@ -78,7 +78,8 @@ services:
       - key: SMTP_PASSWORD
         sync: false
       # Preset.io embedded analytics — set these manually in the Render dashboard
-      # (never commit API credentials to git)
+      # (never commit API credentials to git). API keys from manage.app.preset.io.
+      # Team / workspace / dashboard IDs come from the dashboard Embed dialog.
       - key: PRESET_API_TOKEN
         sync: false
       - key: PRESET_API_SECRET
@@ -89,3 +90,5 @@ services:
         value: SRGBV Hub
       - key: PRESET_WORKSPACE_SLUG
         value: 83f65675
+      - key: PRESET_DASHBOARD_ID
+        value: 7d717db9-a313-4a1e-9df7-53559491b97a

@@ -3,13 +3,13 @@ import { C } from '../tokens.js';
 
 // 'Home' is reached by clicking the SRGBV Coordination Hub title in the top nav.
 const NAV = [
-  { section: 'Main', items: ['Dashboard', 'Partner directory', 'Reporting form', 'GEM Report', 'Submissions'] },
+  { section: 'Main', items: ['Dashboard', 'Partner directory', 'Reporting form', 'GEM Report', 'GEM submissions', 'Submissions'] },
   { section: 'Reports', items: ['Activity reports', 'Analytics', 'Export data'] },
   { section: 'Admin', items: ['User management', 'Form settings', 'System settings'] },
 ];
 
 const PAGE_MAP = {
-  'Home':             'partner-home', // overridden for gem_coordinator → 'gem-home' below
+  'Home':             'partner-home', // overridden per role below
   'Dashboard':        'dashboard',
   'Partner directory': 'directory',
   'Reporting form':   'form',
@@ -17,21 +17,24 @@ const PAGE_MAP = {
   'Analytics':        'analytics',
   'Export data':      'export',
   'GEM Report':       'gem',
+  'GEM submissions':  'gem-review',
   'Submissions':      'submissions',
   'User management':  'users',
 };
 
-// Items visible to GEM coordinators
+// Items visible to GEM coordinators / GEM district officers
 const GEM_ALLOWED = new Set(['Home', 'Dashboard', 'Analytics', 'GEM Report']);
+const GEM_OFFICER_ALLOWED = new Set(['Home', 'Dashboard', 'Analytics', 'GEM submissions']);
 
 export default function Sidebar({ activePage, setActivePage, user }) {
   const isAdmin   = user?.role === 'admin';
   const isViewer  = user?.role === 'viewer';
   const isGem     = user?.role === 'gem_coordinator';
+  const isOfficer = user?.role === 'gem_district_officer';
   const isPartner = user?.role === 'partner';
 
   const resolvePageId = (item) => {
-    if (item === 'Home') return isGem ? 'gem-home' : 'partner-home';
+    if (item === 'Home') return isGem ? 'gem-home' : isOfficer ? 'gem-officer-home' : 'partner-home';
     return PAGE_MAP[item];
   };
 
@@ -49,6 +52,8 @@ export default function Sidebar({ activePage, setActivePage, user }) {
           }}>{section}</div>
           {items.filter(item => {
             if (isGem) return GEM_ALLOWED.has(item);
+            if (isOfficer) return GEM_OFFICER_ALLOWED.has(item);
+            if (item === 'GEM submissions') return false;   // officers only (handled above)
             if (item === 'Home' && !isPartner) return false;
             if (item === 'GEM Report' && isPartner) return false;
             if (item === 'User management' && !isAdmin) return false;

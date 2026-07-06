@@ -196,6 +196,7 @@ export const usersApi = {
   deactivate:   (id)       => apiFetch(`/users/${id}/deactivate`, { method: 'POST' }),
   reactivate:   (id)       => apiFetch(`/users/${id}/reactivate`, { method: 'POST' }),
   resendInvite: (id)       => apiFetch(`/users/${id}/resend-invite`, { method: 'POST' }),
+  resetPassword:(id)       => apiFetch(`/users/${id}/reset-password`, { method: 'POST' }),
   remove:       (id)       => apiFetch(`/users/${id}`,            { method: 'DELETE' }),
 };
 
