@@ -220,6 +220,7 @@ function validate(form) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function GemCoordinatorForm({ user, setActivePage }) {
+  const isAdmin = user?.role === 'admin';   // admins view but never submit GEM reports
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -559,20 +560,21 @@ export default function GemCoordinatorForm({ user, setActivePage }) {
 
         <button
           onClick={handleSubmit}
-          disabled={submitting}
+          disabled={submitting || isAdmin}
+          title={isAdmin ? 'Administrators do not submit GEM reports' : undefined}
           style={{
             padding: '9px 24px',
-            background: C.blue700,
+            background: (submitting || isAdmin) ? C.textMuted : C.blue700,
             color: C.white,
             border: 'none',
             borderRadius: 7,
             fontSize: 13,
             fontWeight: 600,
-            cursor: submitting ? 'wait' : 'pointer',
+            cursor: (submitting || isAdmin) ? 'not-allowed' : 'pointer',
             opacity: submitting ? 0.7 : 1,
           }}
         >
-          {submitting ? 'Submitting…' : 'Submit Report'}
+          {submitting ? 'Submitting…' : isAdmin ? 'Submit (GEM coordinators only)' : 'Submit Report'}
         </button>
 
         <button

@@ -32,6 +32,20 @@ const CARDS = [
     buttonLabel: 'Manage users',
     page: 'users',
   },
+  {
+    icon: '📥',
+    title: 'View GEM coordinator submissions',
+    description: 'Read the monthly reports submitted by GEM coordinators across all districts.',
+    buttonLabel: 'View GEM submissions',
+    page: 'gem-review',
+  },
+  {
+    icon: '🗓️',
+    title: 'Set the reporting period',
+    description: 'Create reporting periods and choose which one is currently open for submissions.',
+    buttonLabel: 'Manage periods',
+    page: 'periods',
+  },
 ];
 
 export default function AdminHome({ setActivePage, user }) {

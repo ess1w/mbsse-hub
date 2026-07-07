@@ -6,6 +6,7 @@ import PartnerDirectory from './components/directory/PartnerDirectory.jsx';
 import ReportingForm from './components/form/ReportingForm.jsx';
 import GemCoordinatorForm from './components/form/GemCoordinatorForm.jsx';
 import UserManagement from './components/admin/UserManagement.jsx';
+import ReportingPeriods from './components/admin/ReportingPeriods.jsx';
 import ActivityReports from './components/reports/ActivityReports.jsx';
 import ExportData from './components/reports/ExportData.jsx';
 import Submissions from './components/submissions/Submissions.jsx';
@@ -80,6 +81,7 @@ export default function App() {
         {activePage === 'form'       && <ReportingForm user={user} setActivePage={setActivePage} />}
         {activePage === 'gem'        && <GemCoordinatorForm user={user} setActivePage={setActivePage} />}
         {activePage === 'users'      && <UserManagement user={user} />}
+        {activePage === 'periods'    && <ReportingPeriods />}
         {activePage === 'reports'     && <ActivityReports user={user} />}
         {activePage === 'submissions' && <Submissions user={user} />}
         {activePage === 'export'      && <ExportData />}

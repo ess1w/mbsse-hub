@@ -5,7 +5,7 @@ import { C } from '../tokens.js';
 const NAV = [
   { section: 'Main', items: ['Dashboard', 'Partner directory', 'Reporting form', 'GEM Report', 'GEM submissions', 'Submissions'] },
   { section: 'Reports', items: ['Activity reports', 'Analytics', 'Export data'] },
-  { section: 'Admin', items: ['User management', 'Form settings', 'System settings'] },
+  { section: 'Admin', items: ['User management', 'Reporting periods', 'Form settings', 'System settings'] },
 ];
 
 const PAGE_MAP = {
@@ -20,6 +20,7 @@ const PAGE_MAP = {
   'GEM submissions':  'gem-review',
   'Submissions':      'submissions',
   'User management':  'users',
+  'Reporting periods': 'periods',
 };
 
 // Items visible to GEM coordinators / GEM district officers
@@ -53,10 +54,11 @@ export default function Sidebar({ activePage, setActivePage, user }) {
           {items.filter(item => {
             if (isGem) return GEM_ALLOWED.has(item);
             if (isOfficer) return GEM_OFFICER_ALLOWED.has(item);
-            if (item === 'GEM submissions') return false;   // officers only (handled above)
+            if (item === 'GEM submissions' && !isAdmin) return false;   // officers + admins
             if (item === 'Home' && !isPartner) return false;
             if (item === 'GEM Report' && isPartner) return false;
             if (item === 'User management' && !isAdmin) return false;
+            if (item === 'Reporting periods' && !isAdmin) return false;
             if (item === 'Reporting form' && isViewer) return false;
             if (item === 'GEM Report' && isViewer) return false;
             return true;

@@ -200,6 +200,15 @@ export const usersApi = {
   remove:       (id)       => apiFetch(`/users/${id}`,            { method: 'DELETE' }),
 };
 
+// ── Reporting periods API ─────────────────────────────────────────────────────
+
+export const reportingPeriodsApi = {
+  list:     ()      => apiFetch('/reporting-periods'),
+  create:   (data)  => apiFetch('/reporting-periods', { method: 'POST', body: JSON.stringify(data) }),
+  activate: (id)    => apiFetch(`/reporting-periods/${id}/activate`, { method: 'POST' }),
+  remove:   (id)    => apiFetch(`/reporting-periods/${id}`, { method: 'DELETE' }),
+};
+
 // ── Reminders API calls (admin) ───────────────────────────────────────────────
 
 export const remindersApi = {

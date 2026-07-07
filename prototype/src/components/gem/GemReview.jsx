@@ -15,7 +15,7 @@ function Badge({ status }) {
 
 const fmtMonth = (d) => d ? new Date(d).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : '—';
 
-function Detail({ report, onReview, onClose }) {
+function Detail({ report, onReview, onClose, canReview }) {
   const [busy, setBusy] = useState(false);
   const num = (label, val) => (
     <div style={{ fontSize: 11 }}>
@@ -31,7 +31,7 @@ function Detail({ report, onReview, onClose }) {
           <div style={{ fontSize: 11, color: C.textSec, marginTop: 2 }}>{fmtMonth(report.reporting_month)} · <Badge status={report.status} /></div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {report.status === 'submitted' && (
+          {canReview && report.status === 'submitted' && (
             <button disabled={busy} onClick={async () => { setBusy(true); await onReview(report.id); setBusy(false); }}
               style={{ fontSize: 11, padding: '5px 14px', borderRadius: 4, cursor: 'pointer', background: C.blue600, color: C.white, border: 'none', fontWeight: 600 }}>
               {busy ? 'Saving…' : '✓ Mark reviewed'}
@@ -77,6 +77,7 @@ function Detail({ report, onReview, onClose }) {
 }
 
 export default function GemReview({ user }) {
+  const canReview = user?.role === 'gem_district_officer';   // admins view only
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null);   // full report detail
@@ -167,7 +168,7 @@ export default function GemReview({ user }) {
                 <div><Badge status={r.status} /></div>
               </div>
               {expanded?.id === r.id && !detailLoading && (
-                <Detail report={expanded} onReview={review} onClose={() => setExpanded(null)} />
+                <Detail report={expanded} onReview={review} onClose={() => setExpanded(null)} canReview={canReview} />
               )}
             </React.Fragment>
           ))}
