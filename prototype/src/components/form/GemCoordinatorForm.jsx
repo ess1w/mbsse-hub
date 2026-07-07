@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { C } from '../../tokens.js';
 import { gemReportsApi } from '../../api/gemReportsApi.js';
+import { districtsApi, usesDemoData } from '../../api/client.js';
 
 // ── Static data ───────────────────────────────────────────────────────────────
 
@@ -10,8 +11,8 @@ const DISTRICTS = [
   'Tonkolili','Western Area Rural','Western Area Urban',
 ];
 
-// District name → id map (matches DB seed order, 1-indexed)
-const DISTRICT_ID = Object.fromEntries(DISTRICTS.map((d, i) => [d, i + 1]));
+// NOTE: district ids come from the backend (real DB ids) — never guess them
+// from array position (the DB order is not alphabetical).
 
 const ACTIVITIES = [
   'School awareness session',
@@ -227,6 +228,16 @@ export default function GemCoordinatorForm({ user, setActivePage }) {
   const [saveStatus, setSaveStatus] = useState('');  // '' | 'saving' | 'saved' | 'error'
   const [submitted, setSubmitted] = useState(false);
 
+  // Districts with their real DB ids (fetched — do not infer ids from order)
+  const [districts, setDistricts] = useState(DISTRICTS.map((name, i) => ({ id: i + 1, name })));
+  const districtIdByName = Object.fromEntries(districts.map(d => [d.name, d.id]));
+  useEffect(() => {
+    if (usesDemoData()) return;
+    districtsApi.list()
+      .then(list => { if (Array.isArray(list) && list.length) setDistricts(list); })
+      .catch(() => {});
+  }, []);
+
   const set = (name, value) => {
     setForm(prev => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors(prev => { const e = { ...prev }; delete e[name]; return e; });
@@ -242,7 +253,7 @@ export default function GemCoordinatorForm({ user, setActivePage }) {
   // Build the API payload from form state
   const buildPayload = () => ({
     reporting_month: form.reporting_month ? form.reporting_month + '-01' : null,
-    district_id: DISTRICT_ID[form.district],
+    district_id: districtIdByName[form.district],
     coordinator_name: form.coordinator_name,
     schools_covered: Number(form.schools_covered) || 0,
     activities_conducted: form.activities_conducted,
@@ -366,7 +377,7 @@ export default function GemCoordinatorForm({ user, setActivePage }) {
               onChange={handleChange}
               style={{ ...inputStyle(false), height: 34 }}
             >
-              {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+              {districts.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
             </select>
           </div>
 

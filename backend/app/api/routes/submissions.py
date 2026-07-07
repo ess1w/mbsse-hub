@@ -177,7 +177,8 @@ async def submit_report(
     # ── Upsert submission for (org, period) ───────────────────────────────────
     # Submission-level scalar columns only — activities/districts/chiefdoms handled below.
     data = body.model_dump(
-        exclude={"org_id", "activities", "districts", "chiefdoms"}, exclude_unset=True
+        exclude={"org_id", "activities", "districts", "chiefdoms", "is_draft"},
+        exclude_unset=True,
     )
     from sqlalchemy import delete as sa_delete
     sub = await db.scalar(
@@ -205,9 +206,13 @@ async def submit_report(
         )
         db.add(sub)
 
-    sub.status = "submitted"
     sub.submitted_by = user.id
-    sub.submitted_at = datetime.now(timezone.utc)
+    if body.is_draft:
+        sub.status = "draft"
+        sub.submitted_at = None
+    else:
+        sub.status = "submitted"
+        sub.submitted_at = datetime.now(timezone.utc)
     await db.flush()
 
     # ── Replace activities, indicators, training and locations ────────────────

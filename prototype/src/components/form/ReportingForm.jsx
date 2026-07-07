@@ -309,39 +309,19 @@ export default function ReportingForm({ user, setActivePage }) {
     goPage(currentPage + 1);
   };
 
-  const saveDraft = () => {
-    setAutosaveLabel('Auto-saved just now');
-    setTimeout(() => setAutosaveLabel('Auto-saved 2 min ago'), 2000);
-  };
-
-  const handleSubmit = async () => {
-    setSubmitError(null);
-
-    // In demo mode (no backend / demo token) just confirm locally.
-    if (usesDemoData()) {
-      setSubmitted(true);
-      setCompletedPages([1, 2, 3]);
-      return;
-    }
-
-    // Section B — geographic coverage entered directly by the partner.
+  // Build the submission-level API payload from the current form state.
+  const buildPayload = () => {
     const coverageDistricts = form.districts;
-
-    // Normalise controlled vocab to the canonical values stored in the database
-    // (charts group on these): focus areas without the "N. " prefix, objectives
-    // as obj1–obj3 codes, tactics as tac1–tac9 codes.
     const stripNum   = (s) => (s || '').replace(/^\s*\d+\.\s*/, '');
     const OBJ_CODE   = Object.fromEntries(FORM_OBJECTIVES.map((o, i) => [o.full, `obj${i + 1}`]));
     const TAC_CODE   = Object.fromEntries(TACTICS.map((t, i) => [t, `tac${i + 1}`]));
     const toObjCode  = (o) => OBJ_CODE[o] || o;
     const toTacCode  = (t) => TAC_CODE[t] || t;
 
-    // Build activity payloads with nested per-district indicators + training (#2–#6)
     const activityPayloads = activities.map(a => {
       const dists = indDistrictsOf(a);
       const indicators = dists.map(d => {
         const base = { ...blankIndicators(), ...(a.ind?.[d] || {}) };
-        // Roll per-focus training up into the district's teacher/official totals
         const totals = {
           teachers_f: 0, teachers_m: 0,
           district_officials_f: 0, district_officials_m: 0,
@@ -388,8 +368,7 @@ export default function ReportingForm({ user, setActivePage }) {
       };
     });
 
-    // Map form state → submission-level API payload
-    const payload = {
+    return {
       project_title:         form.project || null,
       districts:             coverageDistricts,
       chiefdoms:             form.chiefdoms,
@@ -414,6 +393,40 @@ export default function ReportingForm({ user, setActivePage }) {
       planned_activities:    form.plannedActivities || null,
       support_needed:        form.supportNeeded || null,
     };
+  };
+
+  const saveDraft = async () => {
+    if (isAdmin || locked) return;   // admins/locked reports don't save
+    if (usesDemoData()) {
+      setAutosaveLabel('Draft saved just now');
+      setTimeout(() => setAutosaveLabel('Auto-saved 2 min ago'), 2500);
+      return;
+    }
+    setSubmitError(null);
+    setSubmitting(true);
+    try {
+      await submissionsApi.submitReport({ ...buildPayload(), is_draft: true });
+      setEditMode(true);   // a draft now exists for this period
+      setAutosaveLabel('Draft saved just now');
+      setTimeout(() => setAutosaveLabel('Auto-saved 2 min ago'), 3000);
+    } catch (e) {
+      setSubmitError(e.message || 'Could not save draft');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    setSubmitError(null);
+
+    // In demo mode (no backend / demo token) just confirm locally.
+    if (usesDemoData()) {
+      setSubmitted(true);
+      setCompletedPages([1, 2, 3]);
+      return;
+    }
+
+    const payload = buildPayload();
 
     setSubmitting(true);
     try {
@@ -1410,7 +1423,9 @@ export default function ReportingForm({ user, setActivePage }) {
               {currentPage > 1 && (
                 <button onClick={() => goPage(currentPage - 1)} style={{ padding: '8px 16px', background: C.white, color: C.textSec, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>← Previous page</button>
               )}
-              <button onClick={saveDraft} style={{ padding: '8px 12px', background: 'transparent', color: C.textMuted, border: 'none', fontSize: 12, cursor: 'pointer' }}>Save draft</button>
+              {!isAdmin && !locked && (
+                <button onClick={saveDraft} disabled={submitting} style={{ padding: '8px 12px', background: 'transparent', color: C.textMuted, border: 'none', fontSize: 12, cursor: submitting ? 'default' : 'pointer' }}>Save draft</button>
+              )}
               <button onClick={handleCancel} style={{ padding: '8px 14px', background: 'transparent', color: C.red700, border: `1px solid ${C.red100}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>✕ Cancel</button>
             </div>
             <div style={{ fontSize: 11, color: C.textMuted, textAlign: 'center' }}>

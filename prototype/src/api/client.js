@@ -200,6 +200,12 @@ export const usersApi = {
   remove:       (id)       => apiFetch(`/users/${id}`,            { method: 'DELETE' }),
 };
 
+// ── Districts / geography API ─────────────────────────────────────────────────
+
+export const districtsApi = {
+  list: () => apiFetch('/districts'),
+};
+
 // ── Reporting periods API ─────────────────────────────────────────────────────
 
 export const reportingPeriodsApi = {

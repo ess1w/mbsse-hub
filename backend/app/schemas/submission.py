@@ -306,6 +306,9 @@ class SubmissionReportIn(BaseModel):
     # project for the org is used (or a default one is created).
     project_title: str | None = None
 
+    # When true the report is saved as a draft (status stays 'draft'); otherwise submitted.
+    is_draft: bool = False
+
     # Section B — geographic coverage entered by the partner
     districts: list[str] = Field(default_factory=list)
     chiefdoms: list[str] = Field(default_factory=list)
