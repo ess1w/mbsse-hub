@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { FORM_OBJECTIVES, FOCUS_AREAS, ACTIVITY_TYPES, IMPLEMENTATION_STATUSES, GOV_COUNTERPARTS, REFERRAL_PATHWAYS, BUDGET_STATUSES, DISTRICTS, SECTIONS, TACTICS, INTERVENTION_LEVELS, CHIEFDOMS_BY_DISTRICT } from '../../data/formData.js';
 import { C } from '../../tokens.js';
-import { submissionsApi, usesDemoData } from '../../api/client.js';
+import { submissionsApi, reportingPeriodsApi, usesDemoData } from '../../api/client.js';
 
 const PAGE_SECTIONS = {
   1: ['A', 'B', 'C', 'D'],
@@ -142,6 +142,18 @@ export default function ReportingForm({ user, setActivePage }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [successToast, setSuccessToast] = useState(false);
+
+  // Active reporting period label (dynamic — reflects the admin-set active period)
+  const [periodLabel, setPeriodLabel] = useState('');
+  useEffect(() => {
+    if (usesDemoData()) { setPeriodLabel('Mar–Apr 2026'); return; }
+    reportingPeriodsApi.list()
+      .then(list => {
+        const active = (Array.isArray(list) ? list : []).find(p => p.is_active);
+        if (active) setPeriodLabel(active.label);
+      })
+      .catch(() => {});
+  }, []);
 
   // Edit mode — when the partner already has a submission for the active period
   const [editMode, setEditMode] = useState(false);
@@ -715,7 +727,7 @@ export default function ReportingForm({ user, setActivePage }) {
             )}
             {/* Report heading */}
             <div style={{ marginBottom: 16, paddingBottom: 14, borderBottom: `1px solid ${C.borderLight}` }}>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>Bi-monthly Activity Report — March / April 2026</div>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>Bi-monthly Activity Report{periodLabel ? ` — ${periodLabel}` : ''}</div>
               <div style={{ fontSize: 11, color: C.textSec, marginTop: 4, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 {user?.org_name ?? 'Your Organisation'} <span style={{ color: C.border }}>|</span> Submitted by: {user?.full_name ?? user?.email ?? '—'}
               </div>
@@ -732,7 +744,7 @@ export default function ReportingForm({ user, setActivePage }) {
                 {section('A', completedSections.A ? C.green700 : C.blue600, <>
                   <SecHeader id="A" label="Reporting metadata" required done={completedSections.A} systemManaged />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                    {compItem('Reporting period', 'Mar–Apr 2026')}
+                    {compItem('Reporting period', periodLabel || '—')}
                     {compItem('Organisation', user?.org_name ?? '—')}
                     {fl('Project / programme title', inp('project', 'e.g. Girls Education Programme SL…'))}
                     {compItem('Reporting frequency', 'Bi-monthly')}
@@ -1365,7 +1377,7 @@ export default function ReportingForm({ user, setActivePage }) {
                 {section('L', C.textMuted, <>
                   <SecHeader id="L" label="Next period plan" />
                   <div style={g2}>
-                    {fl('Planned activities for next period', textarea('plannedActivities', 'Describe activities planned for May–Jun 2026...'))}
+                    {fl('Planned activities for next period', textarea('plannedActivities', 'Describe activities planned for the next reporting period...'))}
                     {fl('Support needed from MBSSE or partners', textarea('supportNeeded', 'What support would help you deliver next period?...'))}
                   </div>
                 </>)}
