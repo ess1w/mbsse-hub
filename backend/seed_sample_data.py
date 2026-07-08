@@ -231,6 +231,11 @@ async def seed_period(conn, period_cfg, admin_id):
 
 
 async def main():
+    # Demo/sample data must never be seeded into a live pilot.
+    if os.getenv("ENVIRONMENT", "").lower() == "production" and not os.getenv("SEED_DEMO_DATA"):
+        print("  ↷ Skipping sample analytics data (ENVIRONMENT=production).")
+        return
+
     conn = await asyncpg.connect(DATABASE_URL)
 
     admin_id = await conn.fetchval("SELECT id FROM users WHERE role = 'admin' LIMIT 1")

@@ -33,6 +33,9 @@ python seed_pilot_users.py
 echo "==> Seeding sample data for analytics (Jan-Feb + Mar-Apr 2026)..."
 python seed_sample_data.py
 
+echo "==> Cleaning up demo submissions (production only)..."
+python cleanup_demo_submissions.py
+
 echo "==> Starting API server on port ${PORT:-8000}..."
 exec uvicorn app.main:app \
     --host 0.0.0.0 \

@@ -175,9 +175,11 @@ async def submit_report(
             proj.project_title = body.project_title
 
     # ── Upsert submission for (org, period) ───────────────────────────────────
-    # Submission-level scalar columns only — activities/districts/chiefdoms handled below.
+    # Submission-level scalar columns only. project_title (handled above via the
+    # project), activities/districts/chiefdoms and is_draft are NOT Submission
+    # columns and must be excluded, or Submission(**data) fails on the create path.
     data = body.model_dump(
-        exclude={"org_id", "activities", "districts", "chiefdoms", "is_draft"},
+        exclude={"org_id", "project_title", "activities", "districts", "chiefdoms", "is_draft"},
         exclude_unset=True,
     )
     from sqlalchemy import delete as sa_delete

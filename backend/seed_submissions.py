@@ -40,6 +40,12 @@ def rnd(lo, hi): return random.randint(lo, hi)
 
 
 async def main():
+    # Demo data must never be seeded into a live pilot — it would create fake
+    # submissions against real partner organisations for the active period.
+    if os.getenv("ENVIRONMENT", "").lower() == "production" and not os.getenv("SEED_DEMO_DATA"):
+        print("  ↷ Skipping demo submissions (ENVIRONMENT=production).")
+        return
+
     conn = await asyncpg.connect(DATABASE_URL)
 
     # ── Fetch active period ───────────────────────────────────────────────────
