@@ -1241,6 +1241,22 @@ async def seed_reporting_period(conn):
             # Already exists — do NOT touch its active flag (respect admin choice).
             print(f"  –  Reporting period {label} already exists (active flag unchanged)")
 
+    # Safety net: ensure at most ONE active period. If several are active (e.g.
+    # from the earlier seed bug), keep the most recent by start date and
+    # deactivate the rest — this resolves the double-active state deterministically.
+    await conn.execute(
+        """
+        UPDATE reporting_periods SET is_active = false
+        WHERE is_active = true
+          AND id <> (
+              SELECT id FROM reporting_periods
+              WHERE is_active = true
+              ORDER BY start_date DESC, created_at DESC
+              LIMIT 1
+          )
+        """
+    )
+
 
 async def main():
     conn = await asyncpg.connect(DATABASE_URL)
