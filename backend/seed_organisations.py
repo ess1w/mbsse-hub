@@ -1208,14 +1208,18 @@ async def seed_districts(conn):
 
 
 async def seed_reporting_period(conn):
-    """Ensure both bi-monthly periods exist with the correct active flag.
-
-    Jan–Feb 2026  → historical (is_active = false)
-    Mar–Apr 2026  → current active period (is_active = true)
+    """Ensure the two default bi-monthly periods EXIST. The active flag is set
+    only when a period is first created — on re-runs it is left untouched so the
+    admin's chosen active period (set via the Reporting Periods screen) is never
+    overridden on deploy. Only seed a default-active period if none is active yet.
     """
+    any_active = await conn.fetchval(
+        "SELECT 1 FROM reporting_periods WHERE is_active = true LIMIT 1"
+    )
     periods = [
         ("Jan–Feb 2026", "2026-01-01", "2026-02-28", "2026-03-15", False),
-        ("Mar–Apr 2026", "2026-03-01", "2026-04-30", "2026-05-15", True),
+        # Mar–Apr is only marked active on a fresh DB where nothing is active yet.
+        ("Mar–Apr 2026", "2026-03-01", "2026-04-30", "2026-05-15", not any_active),
     ]
     for label, start, end, deadline, is_active in periods:
         existing = await conn.fetchval(
@@ -1234,12 +1238,8 @@ async def seed_reporting_period(conn):
             )
             print(f"  ✓  Reporting period {label} created (active={is_active})")
         else:
-            # Ensure the active flag is correct even on re-runs
-            await conn.execute(
-                "UPDATE reporting_periods SET is_active = $1 WHERE label = $2",
-                is_active, label,
-            )
-            print(f"  –  Reporting period {label} already exists (active set to {is_active})")
+            # Already exists — do NOT touch its active flag (respect admin choice).
+            print(f"  –  Reporting period {label} already exists (active flag unchanged)")
 
 
 async def main():
