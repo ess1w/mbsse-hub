@@ -28,14 +28,29 @@ async def main():
 
     conn = await asyncpg.connect(DATABASE_URL)
     try:
-        result = await conn.execute(
+        # 1. Demo submissions created by the seed scripts (attributed to an admin).
+        r1 = await conn.execute(
             """
             DELETE FROM submissions
             WHERE submitted_by IN (SELECT id FROM users WHERE role = 'admin')
             """
         )
-        # result looks like 'DELETE <n>'
-        print(f"  ✓ Demo submissions cleanup: {result}")
+        # 2. Any submissions left in the retired seed-default periods (Jan–Feb /
+        #    Mar–Apr 2026) while they are NOT the active period. These periods were
+        #    never a real reporting cycle for the pilot, so anything there (incl.
+        #    reports accidentally saved against them) is safe to remove. If an admin
+        #    ever makes one of these active again, it is excluded automatically.
+        r2 = await conn.execute(
+            """
+            DELETE FROM submissions
+            WHERE reporting_period_id IN (
+                SELECT id FROM reporting_periods
+                WHERE is_active = false
+                  AND start_date IN (DATE '2026-01-01', DATE '2026-03-01')
+            )
+            """
+        )
+        print(f"  ✓ Demo submissions cleanup: admin={r1}, retired-periods={r2}")
     finally:
         await conn.close()
 
