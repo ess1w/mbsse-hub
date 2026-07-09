@@ -24,16 +24,16 @@ python seed_new_partner_users.py
 echo "==> Seeding demo users (partner + viewer)..."
 python seed_users.py
 
-echo "==> Seeding demo submissions..."
-python seed_submissions.py
-
 echo "==> Seeding pilot partner users..."
 python seed_pilot_users.py
 
+# Demo/analytics submissions — only when SEED_DEMO_DATA is set (prototype phase).
+# Never seeds the active period, so real partner reporting is never blocked.
 echo "==> Seeding sample data for analytics (Jan-Feb + Mar-Apr 2026)..."
 python seed_sample_data.py
 
-echo "==> Cleaning up demo submissions (production only)..."
+# Pre-production demo wipe — only when RUN_DEMO_CLEANUP is set. Dormant otherwise.
+echo "==> Demo-data cleanup (gated by RUN_DEMO_CLEANUP)..."
 python cleanup_demo_submissions.py
 
 echo "==> Starting API server on port ${PORT:-8000}..."
