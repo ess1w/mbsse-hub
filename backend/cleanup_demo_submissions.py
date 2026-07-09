@@ -1,15 +1,16 @@
 """
-Remove demo/sample submissions from a live database.
+Remove seed/demo submissions for the CURRENT active reporting period only.
 
-The seed scripts created submissions attributed to an admin user (submitted_by =
-an admin). Real partner reports are attributed to the partner's own user, so we
-can safely delete the admin-attributed ones — this clears the fake "verified"
-submissions that would otherwise block partners from submitting real data.
+The active-period demo submissions (created by seed_submissions.py, attributed to
+an admin user) are the fake "verified" reports that can block partners from
+submitting real data. Real partner reports are attributed to the partner's own
+user, so they are preserved.
+
+IMPORTANT: this only ever touches the currently-active period. Historical periods
+(e.g. the Mar–Apr 2026 baseline) are never modified, regardless of attribution.
 
 Runs only in production (ENVIRONMENT=production) unless FORCE_CLEANUP is set.
 Idempotent and safe to run on every deploy.
-
-Deleting a submission cascades to its activities, indicators, locations and files.
 """
 import asyncio
 import os
@@ -28,29 +29,19 @@ async def main():
 
     conn = await asyncpg.connect(DATABASE_URL)
     try:
-        # 1. Demo submissions created by the seed scripts (attributed to an admin).
-        r1 = await conn.execute(
+        result = await conn.execute(
             """
             DELETE FROM submissions
             WHERE submitted_by IN (SELECT id FROM users WHERE role = 'admin')
+              AND reporting_period_id = (
+                  SELECT id FROM reporting_periods
+                  WHERE is_active = true
+                  ORDER BY start_date DESC
+                  LIMIT 1
+              )
             """
         )
-        # 2. Any submissions left in the retired seed-default periods (Jan–Feb /
-        #    Mar–Apr 2026) while they are NOT the active period. These periods were
-        #    never a real reporting cycle for the pilot, so anything there (incl.
-        #    reports accidentally saved against them) is safe to remove. If an admin
-        #    ever makes one of these active again, it is excluded automatically.
-        r2 = await conn.execute(
-            """
-            DELETE FROM submissions
-            WHERE reporting_period_id IN (
-                SELECT id FROM reporting_periods
-                WHERE is_active = false
-                  AND start_date IN (DATE '2026-01-01', DATE '2026-03-01')
-            )
-            """
-        )
-        print(f"  ✓ Demo submissions cleanup: admin={r1}, retired-periods={r2}")
+        print(f"  ✓ Active-period demo submissions cleanup: {result}")
     finally:
         await conn.close()
 
