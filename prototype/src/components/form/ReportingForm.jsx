@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { FORM_OBJECTIVES, FOCUS_AREAS, ACTIVITY_TYPES, IMPLEMENTATION_STATUSES, GOV_COUNTERPARTS, REFERRAL_PATHWAYS, BUDGET_STATUSES, DISTRICTS, SECTIONS, TACTICS, INTERVENTION_LEVELS, CHIEFDOMS_BY_DISTRICT } from '../../data/formData.js';
 import { C } from '../../tokens.js';
 import { submissionsApi, reportingPeriodsApi, usesDemoData } from '../../api/client.js';
+import { downloadReportPdf } from './reportPdf.js';
 
 const PAGE_SECTIONS = {
   1: ['A', 'B', 'C', 'D'],
@@ -24,7 +25,9 @@ export default function ReportingForm({ user, setActivePage }) {
     'schools_held_peer_led_session', 'schools_with_safe_space',
     'students_inschool_f', 'students_inschool_m',
     'students_inschool_age_10_14', 'students_inschool_age_15_19', 'students_inschool_age_under10',
+    'students_inschool_age_19_plus',
     'students_oos_f', 'students_oos_m', 'students_oos_age_10_14', 'students_oos_age_15_19',
+    'students_oos_age_19_plus',
     'students_disability_f', 'students_disability_m',
     'pregnant_girls', 'teenage_mothers', 'teenage_fathers',
     'students_used_reporting_mechanism', 'students_confident_reporting',
@@ -1068,11 +1071,6 @@ export default function ReportingForm({ user, setActivePage }) {
                             {numRow('# of schools where we held a peer-led SRGBV awareness session', 'schools_held_peer_led_session')}
                             {numRow('# of schools we helped establish a designated, student-accessible safe space', 'schools_with_safe_space')}
                           </div>
-                          {/* Blue KPI info box */}
-                          <div style={{ marginTop: 8, background: C.blueBg, border: `1px solid ${C.blue100}`, borderRadius: 5, padding: '7px 12px', fontSize: 10, color: C.blue900, display: 'flex', alignItems: 'flex-start', gap: 7 }}>
-                            <span style={{ flexShrink: 0, fontSize: 13 }}>ℹ</span>
-                            <span>A school is counted as having a <strong>functional SRGBV mechanism</strong> if it meets ≥ 3 of the 4 criteria (trained focal person, reporting protocol, referral pathway, awareness activities). This KPI is auto-calculated by the system from your inputs.</span>
-                          </div>
                         </div>
 
                         {/* Students — 2-col (in-school | out-of-school), each with Total / F / M / age bands */}
@@ -1091,6 +1089,7 @@ export default function ReportingForm({ user, setActivePage }) {
                                 {numRow('Age under 10', 'students_inschool_age_under10')}
                                 {numRow('Age 10–14', 'students_inschool_age_10_14')}
                                 {numRow('Age 15–19', 'students_inschool_age_15_19')}
+                                {numRow('19 and older', 'students_inschool_age_19_plus')}
                               </div>
                             </div>
                             {/* Out-of-school */}
@@ -1104,13 +1103,15 @@ export default function ReportingForm({ user, setActivePage }) {
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                 {numRow('Age 10–14', 'students_oos_age_10_14')}
                                 {numRow('Age 15–19', 'students_oos_age_15_19')}
+                                {numRow('19 and older', 'students_oos_age_19_plus')}
                               </div>
                             </div>
                           </div>
 
                           {/* Disability & vulnerable — card grid */}
                           <div style={{ marginTop: 10 }}>
-                            <div style={{ fontSize: 10, color: C.textMuted, fontWeight: 600, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Disability &amp; vulnerable groups</div>
+                            <div style={{ fontSize: 10, color: C.textMuted, fontWeight: 600, marginBottom: 2, textTransform: 'uppercase', letterSpacing: '.06em' }}>Disability &amp; vulnerable groups</div>
+                            <div style={{ fontSize: 10, color: C.textMuted, marginBottom: 6, fontStyle: 'italic' }}>Includes physical, visual, hearing, intellectual, and other disabilities.</div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: 10 }}>
                               {numCard('Students w/ disability — female', 'students_disability_f')}
                               {numCard('Students w/ disability — male', 'students_disability_m')}
@@ -1426,6 +1427,7 @@ export default function ReportingForm({ user, setActivePage }) {
               {!isAdmin && !locked && (
                 <button onClick={saveDraft} disabled={submitting} style={{ padding: '8px 12px', background: 'transparent', color: C.textMuted, border: 'none', fontSize: 12, cursor: submitting ? 'default' : 'pointer' }}>Save draft</button>
               )}
+              <button onClick={() => downloadReportPdf({ user, periodLabel, form, activities })} title="Download your entries as a PDF" style={{ padding: '8px 12px', background: 'transparent', color: C.blue600, border: `1px solid ${C.blue100}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>⭳ Download PDF</button>
               <button onClick={handleCancel} style={{ padding: '8px 14px', background: 'transparent', color: C.red700, border: `1px solid ${C.red100}`, borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>✕ Cancel</button>
             </div>
             <div style={{ fontSize: 11, color: C.textMuted, textAlign: 'center' }}>

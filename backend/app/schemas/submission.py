@@ -233,11 +233,13 @@ class OutputIndicatorIn(BaseModel):
     students_inschool_age_10_14: int = 0
     students_inschool_age_15_19: int = 0
     students_inschool_age_under10: int = 0
+    students_inschool_age_19_plus: int = 0
     # Students — out-of-school
     students_oos_f: int = 0
     students_oos_m: int = 0
     students_oos_age_10_14: int = 0
     students_oos_age_15_19: int = 0
+    students_oos_age_19_plus: int = 0
     # Disability & vulnerable groups
     students_disability_f: int = 0
     students_disability_m: int = 0
