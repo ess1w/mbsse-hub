@@ -25,9 +25,9 @@ export default function ReportingForm({ user, setActivePage }) {
     'schools_held_peer_led_session', 'schools_with_safe_space',
     'students_inschool_f', 'students_inschool_m',
     'students_inschool_age_10_14', 'students_inschool_age_15_19', 'students_inschool_age_under10',
-    'students_inschool_age_19_plus',
+    'students_inschool_age_20_plus',
     'students_oos_f', 'students_oos_m', 'students_oos_age_10_14', 'students_oos_age_15_19',
-    'students_oos_age_19_plus',
+    'students_oos_age_20_plus',
     'students_disability_f', 'students_disability_m',
     'pregnant_girls', 'teenage_mothers', 'teenage_fathers',
     'students_used_reporting_mechanism', 'students_confident_reporting',
@@ -1089,7 +1089,7 @@ export default function ReportingForm({ user, setActivePage }) {
                                 {numRow('Age under 10', 'students_inschool_age_under10')}
                                 {numRow('Age 10–14', 'students_inschool_age_10_14')}
                                 {numRow('Age 15–19', 'students_inschool_age_15_19')}
-                                {numRow('19 and older', 'students_inschool_age_19_plus')}
+                                {numRow('20 and older', 'students_inschool_age_20_plus')}
                               </div>
                             </div>
                             {/* Out-of-school */}
@@ -1103,7 +1103,7 @@ export default function ReportingForm({ user, setActivePage }) {
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                 {numRow('Age 10–14', 'students_oos_age_10_14')}
                                 {numRow('Age 15–19', 'students_oos_age_15_19')}
-                                {numRow('19 and older', 'students_oos_age_19_plus')}
+                                {numRow('20 and older', 'students_oos_age_20_plus')}
                               </div>
                             </div>
                           </div>

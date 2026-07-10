@@ -163,14 +163,14 @@ class OutputIndicators(Base):
     students_inschool_age_10_14  = Column(Integer, default=0)
     students_inschool_age_15_19  = Column(Integer, default=0)
     students_inschool_age_under10 = Column(Integer, default=0)
-    students_inschool_age_19_plus = Column(Integer, default=0)
+    students_inschool_age_20_plus = Column(Integer, default=0)
 
     # Students — out-of-school
     students_oos_f          = Column(Integer, default=0)
     students_oos_m          = Column(Integer, default=0)
     students_oos_age_10_14  = Column(Integer, default=0)
     students_oos_age_15_19  = Column(Integer, default=0)
-    students_oos_age_19_plus = Column(Integer, default=0)
+    students_oos_age_20_plus = Column(Integer, default=0)
 
     # Students with disability
     students_disability_f = Column(Integer, default=0)
